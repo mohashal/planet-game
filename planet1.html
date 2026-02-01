@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>لعبة ترتيب الكواكب</title>
+    <style>
+        body {
+            height:100%;height:100vh;
+            background: #050510;
+            background:linear-gradient(178deg, #0a0534 43%, #000220);
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            text-align: center;
+            overflow-x: hidden;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding:0;
+            height:100vh;
+        }
+
+        /* منطقة المدارات (الأهداف) */
+        .solar-system {
+            display: flex;
+            gap: 15px;
+            margin: 50px 0;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            min-height: 120px;
+            align-items: center;
+        }
+
+        .drop-zone {
+            width: 80px;
+            height: 80px;
+            border: 2px dashed #5d49af;
+            border:2px dashed #694ddf;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 17px;
+            font-weight:bold;
+            color: #694ddf;
+            position: relative;
+        }
+
+        .drop-zone.hovered {
+            border-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.1);
+        }
+
+        /* منطقة الكواكب المبعثرة */
+        .planets-pool {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 30px;
+            padding: 20px;
+        }
+
+        .planet {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            cursor: grab;
+            display: flex;
+            color:#13094c;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            box-shadow: 0 0 15px rgba(255,255,255,0.2);
+            transition: transform 0.2s;
+            user-select: none;
+        }
+
+        .planet:active { cursor: grabbing; }
+
+        /* ألوان الكواكب */
+        .mercury { background: #A5A5A5; }
+        .venus   { background: #E3BB76; }
+        .earth   { background: #2271B3; }
+        .mars    { background: #E27B58; }
+        .jupiter { background: #D39C7E; width: 85px; height: 85px; }
+        .saturn  { background: #C5AB6E; width: 75px; height: 75px; }
+        .uranus  { background: #BBE1E4; }
+        .neptune { background: #6081FF; }
+
+        .sun {
+            width: 100px;
+            height: 100px;
+            background: radial-gradient(circle, #ffcc00, #ff8800);
+            border-radius: 50%;
+            box-shadow: 0 0 50px #ff8800;
+            margin-left: 20px;
+        }
+
+        .message { margin-top: 20px; font-size: 24px; color: #00ffcc; }
+        
+        .bg {
+    background: url(https://i.ibb.co/87GbbFP/2799006.jpg) no-repeat;
+    background-size: cover;
+    height: 100%;
+    width: 100%;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: -3;
+}
+.bg:before {
+    content: "";
+    width: 100%;
+    height: 100%;
+    background: #000;
+    position: fixed;
+    z-index: -1;
+    top: 0;
+    left: 0;
+    opacity: 0.3;
+}
+
+
+@keyframes fly {
+    from {
+        transform: translateZ(-1200px); /* تبدأ من العمق البعيد */
+        opacity: 0;
+    }
+    10% {
+        opacity: 1;
+    }
+    90% {
+        opacity: 1;
+    }
+    to {
+        transform: translateZ(600px); /* تنتهي أمام الكاميرا */
+        opacity: 0;
+    }
+}
+
+.star-field {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right:0;
+    bottom:0;
+    width: 100%;
+    height: 100%;
+    perspective: 600px;
+    -webkit-perspective: 600px;
+    z-index: -1;
+}
+
+.star-field .layer {
+    box-shadow: -411px -476px #cccccc, 777px -407px #d4d4d4, -387px -477px #fcfcfc, -91px -235px #d4d4d4, 491px -460px #f7f7f7, 892px -128px #f7f7f7, 758px -277px #ededed, 596px 378px #cccccc, 647px 423px whitesmoke, 183px 389px #c7c7c7,
+        524px -237px #f0f0f0, 679px -535px #e3e3e3, 158px 399px #ededed, 157px 249px #ededed, 81px -450px #ebebeb, 719px -360px #c2c2c2, -499px 473px #e8e8e8, -158px -349px #d4d4d4, 870px -134px #cfcfcf, 446px 404px #c2c2c2,
+        440px 490px #d4d4d4, 414px 507px #e6e6e6, -12px 246px #fcfcfc, -384px 369px #e3e3e3, 641px -413px #fcfcfc, 822px 516px #dbdbdb, 449px 132px #c2c2c2, 727px 146px #f7f7f7, -315px -488px #e6e6e6, 952px -70px #e3e3e3,
+        -869px -29px #dbdbdb, 502px 80px #dedede, 764px 342px #e0e0e0, -150px -380px #dbdbdb, 654px -426px #e3e3e3, -325px -263px #c2c2c2, 755px -447px #c7c7c7, 729px -177px #c2c2c2, -682px -391px #e6e6e6, 554px -176px #ededed,
+        -85px -428px #d9d9d9, 714px 55px #e8e8e8, 359px -285px #cfcfcf, -362px -508px #dedede, 468px -265px #fcfcfc, 74px -500px #c7c7c7, -514px 383px #dbdbdb, 730px -92px #cfcfcf, -112px 287px #c9c9c9, -853px 79px #d6d6d6,
+        828px 475px #d6d6d6, -681px 13px #fafafa, -176px 209px #f0f0f0, 758px 457px #fafafa, -383px -454px #ededed, 813px 179px #d1d1d1, 608px 98px whitesmoke, -860px -65px #c4c4c4, -572px 272px #f7f7f7, 459px 533px #fcfcfc,
+        624px -481px #e6e6e6, 790px 477px #dedede, 731px -403px #ededed, 70px -534px #cccccc, -23px 510px #cfcfcf, -652px -237px whitesmoke, -690px 367px #d1d1d1, 810px 536px #d1d1d1, 774px 293px #c9c9c9, -362px 97px #c2c2c2,
+        563px 47px #dedede, 313px 475px #e0e0e0, 839px -491px #e3e3e3, -217px 377px #d4d4d4, -581px 239px #c2c2c2, -857px 72px #cccccc, -23px 340px #dedede, -837px 246px white, 170px -502px #cfcfcf, 822px -443px #e0e0e0, 795px 497px #e0e0e0,
+        -814px -337px #cfcfcf, 206px -339px #f2f2f2, -779px 108px #e6e6e6, 808px 2px #d4d4d4, 665px 41px #d4d4d4, -564px 64px #cccccc, -380px 74px #cfcfcf, -369px -60px #f7f7f7, 47px -495px #e3e3e3, -383px 368px #f7f7f7, 419px 288px #d1d1d1,
+        -598px -50px #c2c2c2, -833px 187px #c4c4c4, 378px 325px whitesmoke, -703px 375px #d6d6d6, 392px 520px #d9d9d9, -492px -60px #c4c4c4, 759px 288px #ebebeb, 98px -412px #c4c4c4, -911px -277px #c9c9c9;
+  transform-style: preserve-3d;
+position: absolute;
+    top: 50%;
+    left: 50%;
+    height: 2px;
+    width: 2px;
+    border-radius: 50%;
+    opacity: 0.1; /* تختفي عند البداية */
+    animation: fly 12s linear infinite;
+}
+/*.star-field .layer:nth-child(1) {
+    animation: sf-fly-by-1 12s linear infinite;
+}
+.star-field .layer:nth-child(2) {
+    animation: sf-fly-by-2 12s linear infinite;
+}
+.star-field .layer:nth-child(3) {
+    animation: sf-fly-by-3 12s linear infinite;
+}
+.star-field .layer:nth-child(4) {
+    animation: sf-fly-by-4 6s linear infinite;
+}
+.star-field .layer:nth-child(5) {
+    animation: sf-fly-by-5 6s linear infinite;
+}
+.star-field .layer:nth-child(6) {
+    animation: sf-fly-by-6 8s linear infinite;
+}*/
+.star-field .layer:nth-child(1) { animation-delay: 0s; }
+.star-field .layer:nth-child(2) { animation-delay: -2s; }
+.star-field .layer:nth-child(3) { animation-delay: -4s; }
+.star-field .layer:nth-child(4) { animation-delay: -6s; }
+.star-field .layer:nth-child(5) { animation-delay: -8s; }
+.star-field .layer:nth-child(6) { animation-delay: -10s; }
+
+    </style>
+</head>
+<body>
+
+<div class="star-field">
+    <div class="layer"></div>
+    <div class="layer"></div>
+    <div class="layer"></div>
+    <div class="layer"></div>
+    <div class="layer"></div>
+    <div class="layer"></div>
+</div>
+    <div class="container">
+        <h1>رتب الكواكب حسب قربها من الشمس</h1>
+        
+        <div class="solar-system">
+            <div class="sun"></div>
+            <div class="drop-zone" data-order="1">1</div>
+            <div class="drop-zone" data-order="2">2</div>
+            <div class="drop-zone" data-order="3">3</div>
+            <div class="drop-zone" data-order="4">4</div>
+            <div class="drop-zone" data-order="5">5</div>
+            <div class="drop-zone" data-order="6">6</div>
+            <div class="drop-zone" data-order="7">7</div>
+            <div class="drop-zone" data-order="8">8</div>
+        </div>
+
+        <div class="planets-pool" id="pool">
+            </div>
+
+        <div id="msg" class="message"></div>
+    </div>
+
+    <script>
+        const planetData = [
+            { id: "1", name: "عطارد", class: "mercury" },
+            { id: "2", name: "الزهرة", class: "venus" },
+            { id: "3", name: "الأرض", class: "earth" },
+            { id: "4", name: "المريخ", class: "mars" },
+            { id: "5", name: "المشتري", class: "jupiter" },
+            { id: "6", name: "زحل", class: "saturn" },
+            { id: "7", name: "أورانوس", class: "uranus" },
+            { id: "8", name: "نبتون", class: "neptune" }
+        ];
+
+        const pool = document.getElementById('pool');
+        const msg = document.getElementById('msg');
+        let correctCount = 0;
+
+        // 1. تبعثر الكواكب عشوائياً
+        const shuffled = [...planetData].sort(() => Math.random() - 0.5);
+
+        // 2. إنشاء الكواكب في منطقة الاختيار
+        shuffled.forEach(p => {
+            const div = document.createElement('div');
+            div.className = `planet ${p.class}`;
+            div.textContent = p.name;
+            div.draggable = true;
+            div.id = p.id;
+            
+            div.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/plain', e.target.id);
+            });
+            
+            pool.appendChild(div);
+        });
+
+        // 3. إعداد مناطق الإسقاط (Drop Zones)
+        document.querySelectorAll('.drop-zone').forEach(zone => {
+            zone.addEventListener('dragover', (e) => e.preventDefault());
+            
+            zone.addEventListener('dragenter', (e) => e.target.classList.add('hovered'));
+            zone.addEventListener('dragleave', (e) => e.target.classList.remove('hovered'));
+
+            zone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                zone.classList.remove('hovered');
+                
+                const planetId = e.dataTransfer.getData('text/plain');
+                const planetElement = document.getElementById(planetId);
+                const zoneOrder = zone.getAttribute('data-order');
+
+                // التحقق من صحة الترتيب
+                if (planetId === zoneOrder) {
+                    zone.appendChild(planetElement);
+                    planetElement.draggable = false;
+                    planetElement.style.cursor = 'default';
+                    correctCount++;
+                    checkWin();
+                } else {
+                    alert("ترتيب خاطئ! حاول مرة أخرى.");
+                }
+            });
+        });
+
+        function checkWin() {
+            if (correctCount === 8) {
+                msg.textContent = "أحسنت! لقد رتبت المجموعة الشمسية بنجاح! 🚀";
+            }
+        }
+    </script>
+</body>
+</html>

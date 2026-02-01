@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مستكشف الفضاء التفاعلي</title>
+    <style>
+        :root {
+            --space-dark: #02020a;
+            --neon-blue: #00d4ff;
+            --success: #00ffcc;
+            --error: #ff3366;
+        }
+
+        body {
+            margin: 0;
+            height: 100vh;
+            background: var(--space-dark);
+            background-image: 
+                radial-gradient(white, rgba(255,255,255,.2) 2px, transparent 40px),
+                radial-gradient(white, rgba(255,255,255,.15) 1px, transparent 30px),
+                radial-gradient(white, rgba(255,255,255,.1) 2px, transparent 40px);
+            background-size: 550px 550px, 350px 350px, 250px 250px;
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        h1 { margin-top: 20px; text-shadow: 0 0 15px var(--neon-blue); }
+
+        /* منطقة المدارات */
+        .solar-system {
+            display: flex;
+            gap: 15px;
+            margin: 30px auto;
+            padding: 40px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 100px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            align-items: center;
+        }
+
+        .sun {
+            width: 110px; height: 110px;
+            background: radial-gradient(circle, #ffcc00, #ff4400);
+            border-radius: 50%;
+            box-shadow: 0 0 60px #ff6600;
+            position: relative;
+        }
+
+        .drop-zone {
+            width: 80px; height: 80px;
+            border: 2px dashed rgba(0, 212, 255, 0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .drop-zone.hovered {
+            background: rgba(0, 212, 255, 0.2);
+            transform: scale(1.15);
+            border-color: var(--neon-blue);
+        }
+
+        /* الكواكب */
+        .planets-pool {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+            padding: 20px;
+            max-width: 900px;
+        }
+
+        .planet {
+            width: 70px; height: 70px;
+            border-radius: 50%;
+            cursor: grab;
+            background-size: cover !important;
+            background-position: center !important;
+            position: relative;
+            transition: transform 0.2s, box-shadow 0.2s;
+            z-index: 100;
+            filter: drop-shadow(0 0 10px rgba(0,0,0,0.8));
+        }
+
+        .planet:active { cursor: grabbing; }
+
+        .planet span {
+            position: absolute; bottom: -25px; left: 50%;
+            transform: translateX(-50%);
+            font-size: 12px; white-space: nowrap;
+            background: rgba(0,0,0,0.7);
+            padding: 2px 8px; border-radius: 5px;
+        }
+
+        /* تأثير الحركة عند السحب */
+        .dragging {
+            opacity: 0.8;
+            transform: scale(1.2);
+            box-shadow: 0 0 30px var(--neon-blue);
+        }
+
+        .message { font-size: 22px; height: 30px; margin: 20px; color: var(--success); }
+        
+        button {
+            padding: 12px 30px; border-radius: 25px; border: none;
+            background: var(--neon-blue); color: black; font-weight: bold;
+            cursor: pointer; display: none; transition: 0.3s;
+        }
+        button:hover { transform: scale(1.1); box-shadow: 0 0 20px var(--neon-blue); }
+        /* أنيميشن الاهتزاز عند الخطأ */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>رتب كواكب المجموعة الشمسية</h1>
+    <div id="msg" class="message">اسحب الكواكب إلى مداراتها الصحيحة</div>
+
+    <div class="solar-system">
+        <div class="sun"></div>
+        <div class="drop-zone" data-order="1"></div>
+        <div class="drop-zone" data-order="2"></div>
+        <div class="drop-zone" data-order="3"></div>
+        <div class="drop-zone" data-order="4"></div>
+        <div class="drop-zone" data-order="5"></div>
+        <div class="drop-zone" data-order="6"></div>
+        <div class="drop-zone" data-order="7"></div>
+        <div class="drop-zone" data-order="8"></div>
+    </div>
+
+    <div class="planets-pool" id="pool"></div>
+    <button id="reset-btn" onclick="location.reload()">إعادة المهمة 🚀</button>
+
+    <audio id="sound-success" src="https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3"></audio>
+    <audio id="sound-error" src="https://assets.mixkit.co/active_storage/sfx/2021/2021-preview.mp3"></audio>
+    <audio id="sound-win" src="https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3"></audio>
+
+    <script>
+        const planetData = [
+            { id: "1", name: "عطارد", img: "https://upload.wikimedia.org/wikipedia/commons/4/4a/Mercury_in_true_color.jpg" },
+            { id: "2", name: "الزهرة", img: "https://upload.wikimedia.org/wikipedia/commons/e/e5/Venus-real_color.jpg" },
+            { id: "3", name: "الأرض", img: "https://upload.wikimedia.org/wikipedia/commons/c/cb/The_Blue_Marble_%28remastered%29.jpg" },
+            { id: "4", name: "المريخ", img: "https://upload.wikimedia.org/wikipedia/commons/0/02/OSIRIS_Mars_true_color.jpg" },
+            { id: "5", name: "المشتري", img: "https://upload.wikimedia.org/wikipedia/commons/2/2b/Jupiter_and_its_shrunken_Great_Red_Spot.jpg" },
+            { id: "6", name: "زحل", img: "https://upload.wikimedia.org/wikipedia/commons/c/c7/Saturn_during_Equinox.jpg" },
+            { id: "7", name: "أورانوس", img: "https://upload.wikimedia.org/wikipedia/commons/3/3d/Uranus_in_true_color_2023.jpg" },
+            { id: "8", name: "نبتون", img: "https://upload.wikimedia.org/wikipedia/commons/6/63/Neptune_full.jpg" }
+        ];
+
+        let correctCount = 0;
+        const pool = document.getElementById('pool');
+        const msg = document.getElementById('msg');
+
+        // خلط الكواكب وإنشاؤها
+        [...planetData].sort(() => Math.random() - 0.5).forEach(p => {
+            const planet = document.createElement('div');
+            planet.className = 'planet';
+            planet.id = p.id;
+            planet.draggable = true;
+            planet.style.background = `url(${p.img})`;
+            
+            const name = document.createElement('span');
+            name.textContent = p.name;
+            planet.appendChild(name);
+
+            // أحداث السحب
+            planet.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text', e.target.id);
+                setTimeout(() => planet.classList.add('dragging'), 0);
+            });
+
+            planet.addEventListener('dragend', () => {
+                planet.classList.remove('dragging');
+            });
+
+            pool.appendChild(planet);
+        });
+
+        // أحداث المدارات
+        document.querySelectorAll('.drop-zone').forEach(zone => {
+            zone.addEventListener('dragover', (e) => e.preventDefault());
+            
+            zone.addEventListener('dragenter', () => zone.classList.add('hovered'));
+            zone.addEventListener('dragleave', () => zone.classList.remove('hovered'));
+
+            zone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                zone.classList.remove('hovered');
+                
+                const planetId = e.dataTransfer.getData('text');
+                const planet = document.getElementById(planetId);
+                const order = zone.getAttribute('data-order');
+
+                if (planetId === order) {
+                    // إجابة صحيحة
+                    zone.appendChild(planet);
+                    planet.draggable = false;
+                    planet.style.cursor = 'default';
+                    document.getElementById('sound-success').play();
+                    correctCount++;
+                    msg.textContent = "أحسنت! كوكب " + planet.innerText + " في مكانه.";
+                    msg.style.color = "var(--success)";
+                    checkWin();
+                } else {
+                    // إجابة خاطئة
+                    document.getElementById('sound-error').play();
+                    msg.textContent = "هذا ليس مدار " + planet.innerText + "!";
+                    msg.style.color = "var(--error)";
+                    // تأثير اهتزاز للمدار الخاطئ
+                    zone.style.animation = "shake 0.5s";
+                    setTimeout(() => zone.style.animation = "", 500);
+                }
+            });
+        });
+
+        function checkWin() {
+            if (correctCount === 8) {
+                document.getElementById('sound-win').play();
+                msg.textContent = "مهمة ناجحة! لقد رتبت النظام الشمسي بالكامل! 👩‍🚀✨";
+                document.getElementById('reset-btn').style.display = 'block';
+            }
+        }
+    </script>
+
+</body>
+</html>

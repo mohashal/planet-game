@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>تحدي مستكشف الفضاء</title>
+    <style>
+        :root {
+            --space-dark: #02020a;
+            --neon-blue: #00d4ff;
+            --success: #00ffcc;
+            --error: #ff3366;
+        }
+
+        body {
+            margin: 0;
+            height: 100vh;
+            background:linear-gradient(178deg, #0a0534 43%, #000220);
+            background:linear-gradient(178deg, #04022a 43%, #00021a);
+            color: white;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        h1 { margin-top: 15px; text-shadow: 0 0 10px var(--neon-blue); font-size: 1.4rem; }
+
+        #msg { 
+            font-size: 1.1rem; height: 35px; margin: 10px; 
+            transition: 0.3s; font-weight: bold; text-align: center;
+        }
+
+        /* المدارات */
+        .solar-system {
+            display: flex;
+            gap: 12px;
+            margin: 20px auto;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 80px;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.1);
+            align-items: center;
+        }
+
+        .sun {
+            width: 85px; height: 85px;
+            background: radial-gradient(circle, #ffcc00, #ff4400);
+            border-radius: 50%;
+            box-shadow: 0 0 40px #ff6600;
+        }
+
+        .drop-zone {
+            width: 75px; height: 75px;
+            border: 2px dashed rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            transition: 0.3s;
+            display: flex; align-items: center; justify-content: center;
+            position: relative;
+        }
+
+        /* تأثير التوهج عند اقتراب الكوكب */
+        .drop-zone.detecting {
+            background: rgba(0, 212, 255, 0.2);
+            transform: scale(1.1);
+            border-color: var(--neon-blue);
+        }
+
+        /* منصة الكواكب بالأسفل */
+        .pool-container {
+            margin-top: auto;
+            margin-bottom: 25px;
+            width: 90%;
+            max-width: 850px;
+            background: rgba(255, 255, 255, 0.07);
+            border-radius: 30px;
+            padding: 20px;
+            display: flex;
+            justify-content: space-around;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .planet-slot {
+            width: 70px; height: 70px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 50%;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        /* الكوكب */
+        .planet {
+            width: 70px; height: 70px;
+            border-radius: 50%;
+            position: absolute;
+            cursor: grab;
+            background-size: cover !important;
+            background-position: center !important;
+            z-index: 100;
+            display: flex; justify-content: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+
+        .planet span {
+            position: absolute; bottom: -24px; font-size: 11px;
+            background: rgba(0,0,0,0.7); padding: 2px 8px; border-radius: 5px;
+            pointer-events: none; white-space: nowrap;
+        }
+
+        .planet.returning { transition: all 0.6s cubic-bezier(0.19, 1, 0.22, 1); }
+
+        /* الأزرار */
+        #reset-btn {
+            display: none;
+            padding: 12px 35px; border-radius: 30px; border: none;
+            background: var(--neon-blue); color: #000; font-weight: bold;
+            cursor: pointer; position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%); z-index: 2000;
+            box-shadow: 0 0 20px var(--neon-blue);
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-10px); }
+            60% { transform: translateX(10px); }
+        }
+        
+@keyframes fly {
+    from {
+        transform: translateZ(-1200px); /* تبدأ من العمق البعيد */
+        opacity: 0;
+    }
+    10% {
+        opacity: 1;
+    }
+    90% {
+        opacity: 1;
+    }
+    to {
+        transform: translateZ(600px); /* تنتهي أمام الكاميرا */
+        opacity: 0;
+    }
+}
+
+.star-field {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right:0;
+    bottom:0;
+    width: 100%;
+    height: 100%;
+    perspective: 600px;
+    -webkit-perspective: 600px;
+    z-index: -1;
+}
+
+.star-field .layer {
+    box-shadow: -411px -476px #cccccc, 777px -407px #d4d4d4, -387px -477px #fcfcfc, -91px -235px #d4d4d4, 491px -460px #f7f7f7, 892px -128px #f7f7f7, 758px -277px #ededed, 596px 378px #cccccc, 647px 423px whitesmoke, 183px 389px #c7c7c7,
+        524px -237px #f0f0f0, 679px -535px #e3e3e3, 158px 399px #ededed, 157px 249px #ededed, 81px -450px #ebebeb, 719px -360px #c2c2c2, -499px 473px #e8e8e8, -158px -349px #d4d4d4, 870px -134px #cfcfcf, 446px 404px #c2c2c2,
+        440px 490px #d4d4d4, 414px 507px #e6e6e6, -12px 246px #fcfcfc, -384px 369px #e3e3e3, 641px -413px #fcfcfc, 822px 516px #dbdbdb, 449px 132px #c2c2c2, 727px 146px #f7f7f7, -315px -488px #e6e6e6, 952px -70px #e3e3e3,
+        -869px -29px #dbdbdb, 502px 80px #dedede, 764px 342px #e0e0e0, -150px -380px #dbdbdb, 654px -426px #e3e3e3, -325px -263px #c2c2c2, 755px -447px #c7c7c7, 729px -177px #c2c2c2, -682px -391px #e6e6e6, 554px -176px #ededed,
+        -85px -428px #d9d9d9, 714px 55px #e8e8e8, 359px -285px #cfcfcf, -362px -508px #dedede, 468px -265px #fcfcfc, 74px -500px #c7c7c7, -514px 383px #dbdbdb, 730px -92px #cfcfcf, -112px 287px #c9c9c9, -853px 79px #d6d6d6,
+        828px 475px #d6d6d6, -681px 13px #fafafa, -176px 209px #f0f0f0, 758px 457px #fafafa, -383px -454px #ededed, 813px 179px #d1d1d1, 608px 98px whitesmoke, -860px -65px #c4c4c4, -572px 272px #f7f7f7, 459px 533px #fcfcfc,
+        624px -481px #e6e6e6, 790px 477px #dedede, 731px -403px #ededed, 70px -534px #cccccc, -23px 510px #cfcfcf, -652px -237px whitesmoke, -690px 367px #d1d1d1, 810px 536px #d1d1d1, 774px 293px #c9c9c9, -362px 97px #c2c2c2,
+        563px 47px #dedede, 313px 475px #e0e0e0, 839px -491px #e3e3e3, -217px 377px #d4d4d4, -581px 239px #c2c2c2, -857px 72px #cccccc, -23px 340px #dedede, -837px 246px white, 170px -502px #cfcfcf, 822px -443px #e0e0e0, 795px 497px #e0e0e0,
+        -814px -337px #cfcfcf, 206px -339px #f2f2f2, -779px 108px #e6e6e6, 808px 2px #d4d4d4, 665px 41px #d4d4d4, -564px 64px #cccccc, -380px 74px #cfcfcf, -369px -60px #f7f7f7, 47px -495px #e3e3e3, -383px 368px #f7f7f7, 419px 288px #d1d1d1,
+        -598px -50px #c2c2c2, -833px 187px #c4c4c4, 378px 325px whitesmoke, -703px 375px #d6d6d6, 392px 520px #d9d9d9, -492px -60px #c4c4c4, 759px 288px #ebebeb, 98px -412px #c4c4c4, -911px -277px #c9c9c9;
+  transform-style: preserve-3d;
+position: absolute;
+    top: 50%;
+    left: 50%;
+    height: 2px;
+    width: 2px;
+    border-radius: 50%;
+    opacity: 0.1; /* تختفي عند البداية */
+    animation: fly 12s linear infinite;
+}
+.star-field .layer:nth-child(1) { animation-delay: 0s; }
+.star-field .layer:nth-child(2) { animation-delay: -2s; }
+.star-field .layer:nth-child(3) { animation-delay: -4s; }
+.star-field .layer:nth-child(4) { animation-delay: -6s; }
+.star-field .layer:nth-child(5) { animation-delay: -8s; }
+.star-field .layer:nth-child(6) { animation-delay: -10s; }
+    </style>
+</head>
+<body>
+<div class="star-field">
+<div class="layer"></div>
+<div class="layer"></div>
+<div class="layer"></div>
+<div class="layer"></div>
+<div class="layer"></div>
+<div class="layer"></div>
+</div>
+    <h1>رتب النظام الشمسي</h1>
+    <div id="msg">اسحب الكوكب إلى مكانه الصحيح بالترتيب من الشمس</div>
+
+    <div class="solar-system">
+        <div class="sun"></div>
+        <div class="drop-zone" data-order="1"></div>
+        <div class="drop-zone" data-order="2"></div>
+        <div class="drop-zone" data-order="3"></div>
+        <div class="drop-zone" data-order="4"></div>
+        <div class="drop-zone" data-order="5"></div>
+        <div class="drop-zone" data-order="6"></div>
+        <div class="drop-zone" data-order="7"></div>
+        <div class="drop-zone" data-order="8"></div>
+    </div>
+
+    <div class="pool-container" id="pool"></div>
+    <button id="reset-btn" onclick="location.reload()">استكشف مجدداً 🚀</button>
+
+    <audio id="snd-correct" src="https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3"></audio>
+    <audio id="snd-wrong" src="https://assets.mixkit.co/active_storage/sfx/2021/2021-preview.mp3"></audio>
+
+    <script>
+        const planetData = [
+            { id: "1", name: "عطارد", img: "https://upload.wikimedia.org/wikipedia/commons/4/4a/Mercury_in_true_color.jpg" },
+            { id: "2", name: "الزهرة", img: "https://upload.wikimedia.org/wikipedia/commons/e/e5/Venus-real_color.jpg" },
+            { id: "3", name: "الأرض", img: "https://upload.wikimedia.org/wikipedia/commons/c/cb/The_Blue_Marble_%28remastered%29.jpg" },
+            { id: "4", name: "المريخ", img: "https://upload.wikimedia.org/wikipedia/commons/0/02/OSIRIS_Mars_true_color.jpg" },
+            { id: "5", name: "المشتري", img: "https://upload.wikimedia.org/wikipedia/commons/2/2b/Jupiter_and_its_shrunken_Great_Red_Spot.jpg" },
+            { id: "6", name: "زحل", img: "https://upload.wikimedia.org/wikipedia/commons/c/c7/Saturn_during_Equinox.jpg" },
+            { id: "7", name: "أورانوس", img: "https://upload.wikimedia.org/wikipedia/commons/3/3d/Uranus_in_true_color_2023.jpg" },
+            { id: "8", name: "نبتون", img: "https://upload.wikimedia.org/wikipedia/commons/6/63/Neptune_full.jpg" }
+        ];
+
+        let correctCount = 0;
+        const pool = document.getElementById('pool');
+        const msg = document.getElementById('msg');
+        const zones = document.querySelectorAll('.drop-zone');
+
+        // إنشاء المنصات والكواكب
+        [...planetData].sort(() => Math.random() - 0.5).forEach((p) => {
+            const slot = document.createElement('div');
+            slot.className = 'planet-slot';
+            pool.appendChild(slot);
+
+            const planet = document.createElement('div');
+            planet.className = 'planet';
+            planet.id = p.id;
+            planet.dataset.name = p.name;
+            planet.style.backgroundImage = `url(${p.img})`;
+            planet.innerHTML = `<span>${p.name}</span>`;
+            
+            // ضبط الموقع الأولي بدقة فوق المنصة
+            setTimeout(() => {
+                const rect = slot.getBoundingClientRect();
+                planet.style.left = rect.left + 'px';
+                planet.style.top = rect.top + 'px';
+                planet.dataset.homeLeft = rect.left;
+                planet.dataset.homeTop = rect.top;
+            }, 100);
+
+            document.body.appendChild(planet);
+            makeDraggable(planet);
+        });
+
+        function makeDraggable(el) {
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+            
+            el.onmousedown = dragStart;
+            el.ontouchstart = dragStart;
+
+            function dragStart(e) {
+                el.classList.remove('returning');
+                const ev = e.touches ? e.touches[0] : e;
+                pos3 = ev.clientX;
+                pos4 = ev.clientY;
+                document.onmouseup = dragEnd;
+                document.ontouchend = dragEnd;
+                document.onmousemove = dragMove;
+                document.ontouchmove = dragMove;
+                el.style.zIndex = 1000;
+            }
+
+            function dragMove(e) {
+                const ev = e.touches ? e.touches[0] : e;
+                pos1 = pos3 - ev.clientX;
+                pos2 = pos4 - ev.clientY;
+                pos3 = ev.clientX;
+                pos4 = ev.clientY;
+                
+                el.style.top = (el.offsetTop - pos2) + "px";
+                el.style.left = (el.offsetLeft - pos1) + "px";
+
+                checkProximity(el);
+            }
+
+            function dragEnd() {
+                document.onmouseup = document.onmousemove = document.ontouchend = document.ontouchmove = null;
+                handleDrop(el);
+            }
+        }
+
+        function checkProximity(el) {
+            const rect = el.getBoundingClientRect();
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top + rect.height / 2;
+
+            zones.forEach(zone => {
+                const zRect = zone.getBoundingClientRect();
+                if (cx > zRect.left && cx < zRect.right && cy > zRect.top && cy < zRect.bottom) {
+                    zone.classList.add('detecting');
+                } else {
+                    zone.classList.remove('detecting');
+                }
+            });
+        }
+
+        function handleDrop(el) {
+            const rect = el.getBoundingClientRect();
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top + rect.height / 2;
+            let foundZone = null;
+
+            zones.forEach(zone => {
+                zone.classList.remove('detecting');
+                const zRect = zone.getBoundingClientRect();
+                if (cx > zRect.left && cx < zRect.right && cy > zRect.top && cy < zRect.bottom) {
+                    foundZone = zone;
+                }
+            });
+
+            if (foundZone) {
+                if (el.id === foundZone.dataset.order) {
+                    // صح
+                    el.style.left = (foundZone.getBoundingClientRect().left + 2.5) + "px";
+                    el.style.top = (foundZone.getBoundingClientRect().top + 2.5) + "px";
+                    el.onmousedown = el.ontouchstart = null;
+                    el.style.cursor = "default";
+                    document.getElementById('snd-correct').play();
+                    msg.textContent = `أحسنت! كوكب ${el.dataset.name} في مكانه الصحيح.`;
+                    msg.style.color = "var(--success)";
+                    correctCount++;
+                    if (correctCount === 8) {
+                        msg.textContent = "عبقري! لقد رتبت المجموعة الشمسية بالكامل 🌟";
+                        document.getElementById('reset-btn').style.display = 'block';
+                    }
+                } else {
+                    // خطأ
+                    document.getElementById('snd-wrong').play();
+                    msg.textContent = `خطأ! هذا ليس مكان كوكب ${el.dataset.name}.`;
+                    msg.style.color = "var(--error)";
+                    foundZone.style.animation = "shake 0.4s";
+                    setTimeout(() => foundZone.style.animation = "", 400);
+                    returnHome(el);
+                }
+            } else {
+                returnHome(el);
+            }
+        }
+
+        function returnHome(el) {
+            el.classList.add('returning');
+            el.style.left = el.dataset.homeLeft + 'px';
+            el.style.top = el.dataset.homeTop + 'px';
+            el.style.zIndex = 100;
+        }
+    </script>
+</body>
+</html>
