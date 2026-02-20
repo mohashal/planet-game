@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>مهندس المدارات: النسخة السلسة</title>
+    <style>
+        :root {
+            --space-bg: #050510;
+            --orbit-base: rgba(255, 255, 255, 0.15);
+            --orbit-highlight: #00f0ff;
+            --sun-glow: #ffaa00;
+        }
+
+        * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            margin: 0; height: 100vh;
+            background: var(--space-bg);
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            display: flex; flex-direction: column;
+            touch-action: none; /* منع السكرول أثناء اللعب */
+        }
+
+        /* الخلفية */
+        .stars {
+            position: fixed; inset: 0; z-index: -1;
+            background: radial-gradient(circle at center, #1a0b2e 0%, #000 100%);
+        }
+        
+        /* واجهة اللعب - منطقة المدارات */
+        #game-stage {
+            position: relative;
+            width: 100%; 
+            flex: 1; /* يأخذ المساحة المتبقية */
+            display: flex; justify-content: center; align-items: center;
+            overflow: hidden;
+        }
+
+        /* الشمس */
+        .sun {
+            position: absolute;
+            left: 50%; top: 50%; transform: translate(-50%, -50%);
+            width: 50px; height: 50px;
+            background: radial-gradient(circle, #fff, #ffd700, #ff8800);
+            border-radius: 50%;
+            box-shadow: 0 0 40px var(--sun-glow);
+            z-index: 10;
+        }
+
+        /* المدارات */
+        .orbit-ring {
+            position: absolute;
+            left: 50%; top: 50%; transform: translate(-50%, -50%);
+            border: 1px dashed var(--orbit-base);
+            border-radius: 50%;
+            pointer-events: none; /* سر السلاسة: المدار لا يعيق الماوس */
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        
+        /* تأثير عند اقتراب الكوكب */
+        .orbit-ring.active {
+            border: 2px solid var(--orbit-highlight);
+            box-shadow: 0 0 20px var(--orbit-highlight), inset 0 0 10px var(--orbit-highlight);
+        }
+
+        /* أحجام المدارات (تم ضبطها لتناسب الجوال) */
+        .orb-1 { width: 90px; height: 90px; }
+        .orb-2 { width: 140px; height: 140px; }
+        .orb-3 { width: 190px; height: 190px; }
+        .orb-4 { width: 240px; height: 240px; }
+        .orb-5 { width: 310px; height: 310px; }
+        .orb-6 { width: 380px; height: 380px; }
+        .orb-7 { width: 450px; height: 450px; }
+        .orb-8 { width: 520px; height: 520px; }
+
+        /* منطقة الكواكب (Dock) */
+        #dock-area {
+            height: 140px; width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-top: 2px solid rgba(255, 255, 255, 0.2);
+            display: flex; align-items: center; 
+            padding: 0 20px; gap: 15px;
+            overflow-x: auto;
+            position: relative; z-index: 50;
+        }
+
+        /* الكوكب القابل للسحب */
+        .planet-token {
+            flex: 0 0 auto; /* منع الانكماش */
+            width: 60px; height: 60px;
+            border-radius: 50%;
+            background-size: cover;
+            position: relative;
+            border: 2px solid rgba(255,255,255,0.3);
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            touch-action: none; /* مهم جداً للموبايل */
+        }
+        .planet-token span {
+            position: absolute; bottom: -20px; width: 120%; left: -10%; text-align: center;
+            font-size: 0.7rem; color: #ddd; font-weight: bold; pointer-events: none;
+            text-shadow: 0 1px 2px black;
+        }
+
+        /* عند السحب */
+        .planet-token.dragging {
+            position: fixed; z-index: 9999;
+            transform: scale(1.3);
+            box-shadow: 0 0 25px rgba(255, 255, 255, 0.8);
+            border-color: #fff;
+            pointer-events: none; /* لكي نتمكن من اكتشاف ما تحته */
+        }
+
+        /* الدوران بعد النجاح */
+        .orbit-container {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            border-radius: 50%; pointer-events: none;
+        }
+        .planet-orbiting {
+            position: absolute; top: 50%; right: -12px; margin-top: -12px;
+            width: 24px; height: 24px; border-radius: 50%;
+            background-size: cover;
+            animation: counter-rot linear infinite;
+        }
+        @keyframes rot { 100% { transform: translate(-50%, -50%) rotate(360deg); } }
+        @keyframes counter-rot { 100% { transform: rotate(-360deg); } }
+
+        /* شاشة البداية */
+        #intro {
+            position: fixed; inset: 0; z-index: 200;
+            background: rgba(5, 5, 10, 0.98);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            text-align: center;
+        }
+        .start-btn {
+            margin-top: 30px; padding: 15px 50px;
+            background: #00f0ff; border: none; font-size: 1.2rem; font-weight: bold;
+            border-radius: 50px; cursor: pointer;
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.5);
+        }
+
+        /* رسالة الفوز */
+        #win-modal {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0);
+            background: rgba(0, 20, 40, 0.95); padding: 40px; 
+            border: 2px solid #00ff9d; border-radius: 20px;
+            text-align: center; z-index: 300; transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        #win-modal.show { transform: translate(-50%, -50%) scale(1); }
+
+    </style>
+</head>
+<body>
+
+<div class="stars"></div>
+
+<div id="intro">
+    <h1 style="color:#00f0ff; font-size: 2.5rem; margin-bottom: 10px;">مهندس المدارات</h1>
+    <p style="color:#ccc; line-height: 1.6;">أعد الكواكب إلى مداراتها الصحيحة حول الشمس</p>
+    <button class="start-btn" onclick="startGame()">بدء الإصلاح</button>
+</div>
+
+<div id="game-stage">
+    <div class="sun"></div>
+    <div class="orbit-ring orb-1" data-r="1"></div>
+    <div class="orbit-ring orb-2" data-r="2"></div>
+    <div class="orbit-ring orb-3" data-r="3"></div>
+    <div class="orbit-ring orb-4" data-r="4"></div>
+    <div class="orbit-ring orb-5" data-r="5"></div>
+    <div class="orbit-ring orb-6" data-r="6"></div>
+    <div class="orbit-ring orb-7" data-r="7"></div>
+    <div class="orbit-ring orb-8" data-r="8"></div>
+</div>
+
+<div id="dock-area"></div>
+
+<div id="win-modal">
+    <h2 style="color:#00ff9d; margin:0 0 10px 0;">نظام شمسي مستقر!</h2>
+    <p style="color:white; margin-bottom: 20px;">تمت المهمة بنجاح</p>
+    <button class="start-btn" style="background:#00ff9d; color:black; margin-top:0" onclick="location.reload()">إعادة اللعب</button>
+</div>
+
+<script>
+    const planets = [
+        { name: "عطارد", rank: 1, speed: 3, img: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Mercury_in_true_color.jpg/240px-Mercury_in_true_color.jpg" },
+        { name: "الزهرة", rank: 2, speed: 5, img: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/08/Venus_from_Mariner_10.jpg/240px-Venus_from_Mariner_10.jpg" },
+        { name: "الأرض", rank: 3, speed: 7, img: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/The_Earth_seen_from_Apollo_17.jpg/240px-The_Earth_seen_from_Apollo_17.jpg" },
+        { name: "المريخ", rank: 4, speed: 9, img: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/OSIRIS_Mars_true_color.jpg/240px-OSIRIS_Mars_true_color.jpg" },
+        { name: "المشتري", rank: 5, speed: 12, img: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/Jupiter_and_its_shrunken_Great_Red_Spot.jpg/240px-Jupiter_and_its_shrunken_Great_Red_Spot.jpg" },
+        { name: "زحل", rank: 6, speed: 15, img: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Saturn_during_Equinox.jpg/300px-Saturn_during_Equinox.jpg" },
+        { name: "أورانوس", rank: 7, speed: 18, img: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/Uranus2.jpg/240px-Uranus2.jpg" },
+        { name: "نبتون", rank: 8, speed: 21, img: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/Neptune_-_Voyager_2_%2829347980845%29_flatten_crop.jpg/240px-Neptune_-_Voyager_2_%2829347980845%29_flatten_crop.jpg" }
+    ];
+
+    let successCount = 0;
+    let audioCtx = null;
+    let muted = false;
+
+    // --- Audio System ---
+    function initAudio() {
+        if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+    }
+    function playSnd(type) {
+        if(muted || !audioCtx) return;
+        try {
+            const o = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            o.connect(g); g.connect(audioCtx.destination);
+            const t = audioCtx.currentTime;
+            
+            if(type === 'snap') {
+                o.type = 'sine'; o.frequency.setValueAtTime(400, t);
+                o.frequency.exponentialRampToValueAtTime(800, t+0.1);
+                g.gain.setValueAtTime(0.1, t); g.gain.linearRampToValueAtTime(0, t+0.2);
+                o.start(t); o.stop(t+0.2);
+            } else if(type === 'hover') {
+                o.type = 'triangle'; o.frequency.setValueAtTime(200, t);
+                g.gain.setValueAtTime(0.05, t); g.gain.linearRampToValueAtTime(0, t+0.05);
+                o.start(t); o.stop(t+0.05);
+            } else { // error
+                o.type = 'sawtooth'; o.frequency.setValueAtTime(100, t);
+                g.gain.setValueAtTime(0.1, t); g.gain.linearRampToValueAtTime(0, t+0.2);
+                o.start(t); o.stop(t+0.2);
+            }
+        } catch(e){}
+    }
+
+    function startGame() {
+        document.getElementById('intro').style.display = 'none';
+        initAudio();
+        createPlanets();
+    }
+
+    function createPlanets() {
+        const dock = document.getElementById('dock-area');
+        const shuffled = [...planets].sort(() => Math.random() - 0.5);
+        
+        shuffled.forEach(p => {
+            const div = document.createElement('div');
+            div.className = 'planet-token';
+            div.style.backgroundImage = `url(${p.img})`;
+            div.innerHTML = `<span>${p.name}</span>`;
+            
+            // بيانات اللعبة
+            div.dataset.rank = p.rank;
+            div.dataset.speed = p.speed;
+            
+            dock.appendChild(div);
+            
+            // تفعيل السحب السلس
+            enableSmoothDrag(div);
+        });
+    }
+
+    // --- نظام السحب السلس (The Butter Smooth Logic) ---
+    function enableSmoothDrag(el) {
+        let isDragging = false;
+        let startX, startY;      // أين لمس الإصبع الشاشة
+        let initialLeft, initialTop; // أين كان العنصر
+        let shiftX, shiftY;      // الفرق بين الإصبع وزاوية العنصر (للمنع القفز)
+        
+        // عنصر وهمي (Clone) نستخدمه للسحب لكي لا نؤثر على تصميم الشريط
+        let ghostEl = null;
+
+        const start = (e) => {
+            e.preventDefault();
+            isDragging = true;
+            
+            const touch = e.touches ? e.touches[0] : e;
+            const rect = el.getBoundingClientRect();
+            
+            // حساب الإزاحة الدقيقة لمنع القفز
+            shiftX = touch.clientX - rect.left;
+            shiftY = touch.clientY - rect.top;
+            
+            // إنشاء نسخة (Ghost) للتحريك
+            ghostEl = el.cloneNode(true);
+            ghostEl.classList.add('dragging');
+            ghostEl.style.width = rect.width + 'px';
+            ghostEl.style.height = rect.height + 'px';
+            
+            // وضع النسخة مكان الإصبع بالضبط (مع مراعاة الإزاحة)
+            ghostEl.style.left = (touch.clientX - shiftX) + 'px';
+            ghostEl.style.top = (touch.clientY - shiftY) + 'px';
+            
+            document.body.appendChild(ghostEl);
+            el.style.opacity = '0'; // إخفاء الأصلي مؤقتاً
+            
+            playSnd('hover');
+
+            document.addEventListener('mousemove', move, {passive: false});
+            document.addEventListener('touchmove', move, {passive: false});
+            document.addEventListener('mouseup', end);
+            document.addEventListener('touchend', end);
+        };
+
+        const move = (e) => {
+            if (!isDragging) return;
+            e.preventDefault();
+            
+            const touch = e.touches ? e.touches[0] : e;
+            
+            // تحريك النسخة
+            ghostEl.style.left = (touch.clientX - shiftX) + 'px';
+            ghostEl.style.top = (touch.clientY - shiftY) + 'px';
+            
+            // التحقق من الرادار (أي مدار نحن فوقه؟)
+            checkRadar(ghostEl);
+        };
+
+        const end = (e) => {
+            if (!isDragging) return;
+            isDragging = false;
+            
+            document.removeEventListener('mousemove', move);
+            document.removeEventListener('touchmove', move);
+            document.removeEventListener('mouseup', end);
+            document.removeEventListener('touchend', end);
+
+            // منطق الإفلات
+            const dropped = attemptDrop(el, ghostEl);
+            
+            if (!dropped) {
+                // فشل: إعادة العنصر الأصلي وإزالة النسخة
+                ghostEl.style.transition = 'all 0.3s ease';
+                const rect = el.getBoundingClientRect();
+                ghostEl.style.left = rect.left + 'px';
+                ghostEl.style.top = rect.top + 'px';
+                ghostEl.style.transform = 'scale(1)';
+                
+                setTimeout(() => {
+                    ghostEl.remove();
+                    el.style.opacity = '1';
+                }, 300);
+                playSnd('error');
+            } else {
+                // نجاح: إزالة النسخة والأصلي
+                ghostEl.remove();
+                el.remove();
+            }
+        };
+
+        el.addEventListener('mousedown', start);
+        el.addEventListener('touchstart', start, {passive: false});
+    }
+
+    // --- منطق الرادار والمسافة ---
+    function getDistanceToSun(el) {
+        const sun = document.querySelector('.sun');
+        const sRect = sun.getBoundingClientRect();
+        const sX = sRect.left + sRect.width/2;
+        const sY = sRect.top + sRect.height/2;
+        
+        const eRect = el.getBoundingClientRect();
+        const eX = eRect.left + eRect.width/2;
+        const eY = eRect.top + eRect.height/2;
+        
+        return Math.sqrt(Math.pow(eX - sX, 2) + Math.pow(eY - sY, 2));
+    }
+
+    function checkRadar(movingEl) {
+        const dist = getDistanceToSun(movingEl);
+        
+        document.querySelectorAll('.orbit-ring').forEach(ring => {
+            ring.classList.remove('active');
+            
+            // نصف قطر المدار الحالي
+            const radius = ring.offsetWidth / 2;
+            
+            // هامش خطأ مقبول (25 بكسل)
+            if (Math.abs(dist - radius) < 25) {
+                ring.classList.add('active');
+            }
+        });
+    }
+
+    function attemptDrop(originalEl, movedEl) {
+        const dist = getDistanceToSun(movedEl);
+        let targetRing = null;
+
+        const rings = document.querySelectorAll('.orbit-ring');
+        for (let ring of rings) {
+            const radius = ring.offsetWidth / 2;
+            if (Math.abs(dist - radius) < 25) {
+                targetRing = ring;
+                break;
+            }
+        }
+
+        if (targetRing && targetRing.dataset.r === originalEl.dataset.rank) {
+            // تطابق صحيح!
+            launchOrbit(targetRing, originalEl.dataset.speed, originalEl.style.backgroundImage);
+            return true;
+        }
+        return false;
+    }
+
+    function launchOrbit(ring, speed, bgImage) {
+        playSnd('snap');
+        
+        // تحويل المدار إلى وضع النشاط الدائم
+        ring.style.borderColor = "#00f0ff";
+        ring.style.borderStyle = "solid";
+        ring.style.boxShadow = "0 0 10px #00f0ff";
+        
+        // إنشاء الحاوية الدوارة
+        const container = document.createElement('div');
+        container.className = 'orbit-container';
+        container.style.width = ring.offsetWidth + 'px';
+        container.style.height = ring.offsetHeight + 'px';
+        container.style.animation = `rot ${speed}s linear infinite`; // الدوران
+        
+        // إنشاء الكوكب
+        const p = document.createElement('div');
+        p.className = 'planet-orbiting';
+        p.style.backgroundImage = bgImage;
+        p.style.animation = `counter-rot ${speed}s linear infinite`; // عكس الدوران ليبقى ثابتاً بصرياً
+        
+        container.appendChild(p);
+        document.getElementById('game-stage').appendChild(container);
+
+        successCount++;
+        if(successCount === 8) {
+            setTimeout(() => {
+                document.getElementById('win-modal').classList.add('show');
+            }, 1000);
+        }
+    }
+</script>
+</body>
+</html>

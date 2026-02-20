@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>مستكشف الفضاء - نسخة الموبايل</title>
+    <style>
+        :root {
+            --space-dark: #00021a;
+            --neon-blue: #00d4ff;
+            --success: #00ffcc;
+            --gold: #ffd700;
+            --error: #ff3366;
+            --col-hot: rgba(255, 51, 102, 0.15);
+            --col-mod: rgba(0, 255, 204, 0.15);
+            --col-cold: rgba(0, 212, 255, 0.15);
+        }
+
+        * { 
+            user-select: none; 
+            -webkit-user-select: none; 
+            -webkit-user-drag: none; 
+            box-sizing: border-box; 
+            -webkit-tap-highlight-color: transparent; 
+        }
+
+        body {
+            margin: 0; 
+            height: 100vh; 
+            height: 100dvh; 
+            background: var(--space-dark);
+            color: white; 
+            font-family: 'Noto Kufi Arabic', sans-serif !important;
+            display: flex; 
+            flex-direction: column; 
+            align-items: center;
+            overflow: hidden; 
+            touch-action: none; 
+        }
+
+        /* --- خلفية النجوم --- */
+.star-field {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right:0;
+    bottom:0;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at center, #001233 0%, #00021a 100%);
+    perspective: 600px;
+    -webkit-perspective: 600px;
+    z-index: -1;
+}
+@keyframes fly {
+    from {
+        transform: translateZ(-1200px); /* تبدأ من العمق البعيد */
+        opacity: 0;
+    }
+    10% {
+        opacity: 1;
+    }
+    90% {
+        opacity: 1;
+    }
+    to {
+        transform: translateZ(600px); /* تنتهي أمام الكاميرا */
+        opacity: 0;
+    }
+}
+.star-field .layer {
+    box-shadow: -411px -476px #cccccc, 777px -407px #d4d4d4, -387px -477px #fcfcfc, -91px -235px #d4d4d4, 491px -460px #f7f7f7, 892px -128px #f7f7f7, 758px -277px #ededed, 596px 378px #cccccc, 647px 423px whitesmoke, 183px 389px #c7c7c7,
+        524px -237px #f0f0f0, 679px -535px #e3e3e3, 158px 399px #ededed, 157px 249px #ededed, 81px -450px #ebebeb, 719px -360px #c2c2c2, -499px 473px #e8e8e8, -158px -349px #d4d4d4, 870px -134px #cfcfcf, 446px 404px #c2c2c2,
+        440px 490px #d4d4d4, 414px 507px #e6e6e6, -12px 246px #fcfcfc, -384px 369px #e3e3e3, 641px -413px #fcfcfc, 822px 516px #dbdbdb, 449px 132px #c2c2c2, 727px 146px #f7f7f7, -315px -488px #e6e6e6, 952px -70px #e3e3e3,
+        -869px -29px #dbdbdb, 502px 80px #dedede, 764px 342px #e0e0e0, -150px -380px #dbdbdb, 654px -426px #e3e3e3, -325px -263px #c2c2c2, 755px -447px #c7c7c7, 729px -177px #c2c2c2, -682px -391px #e6e6e6, 554px -176px #ededed,
+        -85px -428px #d9d9d9, 714px 55px #e8e8e8, 359px -285px #cfcfcf, -362px -508px #dedede, 468px -265px #fcfcfc, 74px -500px #c7c7c7, -514px 383px #dbdbdb, 730px -92px #cfcfcf, -112px 287px #c9c9c9, -853px 79px #d6d6d6,
+        828px 475px #d6d6d6, -681px 13px #fafafa, -176px 209px #f0f0f0, 758px 457px #fafafa, -383px -454px #ededed, 813px 179px #d1d1d1, 608px 98px whitesmoke, -860px -65px #c4c4c4, -572px 272px #f7f7f7, 459px 533px #fcfcfc,
+        624px -481px #e6e6e6, 790px 477px #dedede, 731px -403px #ededed, 70px -534px #cccccc, -23px 510px #cfcfcf, -652px -237px whitesmoke, -690px 367px #d1d1d1, 810px 536px #d1d1d1, 774px 293px #c9c9c9, -362px 97px #c2c2c2,
+        563px 47px #dedede, 313px 475px #e0e0e0, 839px -491px #e3e3e3, -217px 377px #d4d4d4, -581px 239px #c2c2c2, -857px 72px #cccccc, -23px 340px #dedede, -837px 246px white, 170px -502px #cfcfcf, 822px -443px #e0e0e0, 795px 497px #e0e0e0,
+        -814px -337px #cfcfcf, 206px -339px #f2f2f2, -779px 108px #e6e6e6, 808px 2px #d4d4d4, 665px 41px #d4d4d4, -564px 64px #cccccc, -380px 74px #cfcfcf, -369px -60px #f7f7f7, 47px -495px #e3e3e3, -383px 368px #f7f7f7, 419px 288px #d1d1d1,
+        -598px -50px #c2c2c2, -833px 187px #c4c4c4, 378px 325px whitesmoke, -703px 375px #d6d6d6, 392px 520px #d9d9d9, -492px -60px #c4c4c4, 759px 288px #ebebeb, 98px -412px #c4c4c4, -911px -277px #c9c9c9;
+  transform-style: preserve-3d;
+position: absolute;
+    top: 50%;
+    left: 50%;
+    height: 2px;
+    width: 2px;
+    border-radius: 50%;
+    opacity: 0.1; /* تختفي عند البداية */
+    animation: fly 12s linear infinite;
+}
+        .star-field .layer:nth-child(1) { animation-delay: 0s; }
+        .star-field .layer:nth-child(2) { animation-delay: -2s; }
+        .star-field .layer:nth-child(3) { animation-delay: -4s; }
+        .star-field .layer:nth-child(4) { animation-delay: -6s; }
+        .star-field .layer:nth-child(5) { animation-delay: -8s; }
+        .star-field .layer:nth-child(6) { animation-delay: -10s; }
+
+
+        /* --- أدوات التحكم --- */
+        .audio-controls {
+            position: fixed; top: 10px; left: 10px; z-index: 2000;
+            background: rgba(255,255,255,0.1); padding: 8px; border-radius: 50%;
+            cursor: pointer; border: 1px solid var(--neon-blue); width: 35px; height: 35px;
+            display: flex; justify-content: center; align-items: center; font-size: 1.2rem;
+        }
+
+        .stats-bar {
+            display: flex; gap: 15px; margin: 10px 0; z-index: 10;
+            background: rgba(255, 255, 255, 0.05); padding: 8px 20px; 
+            border-radius: 50px; border: 1px solid var(--neon-blue);
+            font-size: 0.9rem;
+        }
+
+        /* --- حاوية اللعبة --- */
+        #game-content {
+            display: none; width: 100%; height: 100%;
+            flex-direction: column; align-items: center;
+            justify-content: flex-start;
+        }
+
+        /* --- الجدول --- */
+        .table-container {
+            display: flex;
+            width: 98%;
+            max-width: 800px;
+            flex: 1; 
+            max-height: 55vh; 
+            gap: 5px;
+            padding: 5px;
+            margin-bottom: 10px;
+        }
+
+        .column {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border-radius: 10px;
+            border: 2px dashed rgba(255,255,255,0.2);
+            background: rgba(0,0,0,0.2);
+            transition: 0.2s;
+            position: relative;
+        }
+
+        .column h3 {
+            margin: 8px 0;
+            font-size: 0.85rem; 
+            text-align: center;
+            padding-bottom: 5px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            width: 90%;
+            white-space: nowrap; 
+        }
+        
+        .column[data-type="cold"] h3 { color: #00d4ff; }
+        .column[data-type="moderate"] h3 { color: #00ffcc; }
+        .column[data-type="hot"] h3 { color: #ff3366; }
+
+        .column-content {
+            flex: 1;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            padding: 2px;
+            overflow-y: auto; 
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .col-cold { border-color: #00d4ff; background: linear-gradient(to bottom, var(--col-cold), transparent); }
+        .col-moderate { border-color: #00ffcc; background: linear-gradient(to bottom, var(--col-mod), transparent); }
+        .col-hot { border-color: #ff3366; background: linear-gradient(to bottom, var(--col-hot), transparent); }
+
+        .column.detecting { background-color: rgba(255,255,255,0.15); box-shadow: 0 0 10px var(--neon-blue); border-style: solid; }
+        
+        .column.error { 
+            border-color: var(--error) !important; 
+            background: rgba(255, 51, 102, 0.4); 
+            animation: shake 0.5s ease-in-out; 
+        }
+        @keyframes shake { 
+            0%, 100% { transform: translateX(0); } 
+            20%, 60% { transform: translateX(-5px); } 
+            40%, 80% { transform: translateX(5px); } 
+        }
+
+        /* --- الكواكب --- */
+        .pool-container {
+            width:96%;
+            background: rgba(255, 255, 255, 0.07); 
+            border-radius: 25px;
+            padding: 10px;
+            display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;
+            min-height: 25vh;
+            border-top: 2px solid rgba(255,255,255,0.1);
+        }
+
+        .planet-slot { 
+            width: 13vw; height: 13vw; 
+            max-width: 60px; max-height: 60px;
+            background: rgba(0,0,0,0.3); border-radius: 50%; 
+        }
+
+        .planet { 
+            width: 13vw; height: 13vw; 
+            max-width: 60px; max-height: 60px;
+            border-radius: 50%; position: absolute; 
+            touch-action: none; 
+            z-index: 100; display: flex; justify-content: center; align-items: center;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5));
+        }
+        
+        .planet.dragging {
+            transform: scale(1.3);
+            z-index: 9999 !important;
+            filter: drop-shadow(0 15px 30px rgba(0,0,0,0.8));
+        }
+
+        .planet.docked {
+            position: relative !important; left: auto !important; top: auto !important;
+            margin: 2px 0; transform: none !important; cursor: default;
+            width: 45px; height: 45px; 
+        }
+
+        .planet-img { 
+            width: 100%; height: 100%; border-radius: 50%; background-size: cover !important; 
+            background-repeat: no-repeat !important; background-position: center !important;
+            animation: rotatePlanet 20s linear infinite;
+            pointer-events: none;
+        }
+        @keyframes rotatePlanet { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        
+        .planet span { 
+            position: absolute; bottom: -18px; font-size: 0.7rem; font-weight:bold; 
+            text-shadow: 0 2px 4px black; pointer-events: none; width: 140%; text-align: center;
+            background: rgba(0,0,0,0.7); border-radius: 10px; padding: 0 2px;
+            left: 50%; transform: translateX(-50%);
+        }
+        .planet.returning { transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
+        /* --- شاشات --- */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(7,12,50,0.9);
+            display: none; justify-content: center; align-items: center;
+            z-index: 5000; backdrop-filter: blur(8px);
+        }
+        .modal-content {
+            background: #030729; padding: 30px; border-radius: 30px; border: 1px solid var(--neon-blue);
+            text-align: center; width: 85%; max-width: 350px; box-shadow: 0 0 30px rgba(0, 212, 255, 0.4);
+        }
+        .rank-tag { color: var(--gold); font-size: 1.3rem; font-weight: bold; margin: 15px 0; display: block; }
+        .retry-btn { background: var(--neon-blue); color: black; border: none; padding: 12px 40px; border-radius: 50px; font-weight: bold; cursor: pointer; font-family: inherit; font-size: 1rem; }
+
+        #welcome-screen {
+            position: fixed; inset: 0;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 7000; text-align: center; padding: 20px;
+            /*background: var(--space-dark);*/
+            width: 100%; height: 100%;
+        }
+        #astronaut-img {
+            width: 140px; height: 140px;
+            background-image: url('https://cdn-icons-png.flaticon.com/512/1067/1067357.png');
+            background-size: contain; background-repeat: no-repeat; background-position: center;
+            animation: floatAstronaut 4s ease-in-out infinite;
+            margin-bottom: 10px;
+            filter: drop-shadow(0 0 15px #00d4ff);
+        }
+        @keyframes floatAstronaut {
+            0% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-10px) rotate(5deg); }
+            100% { transform: translateY(0px) rotate(0deg); }
+        }
+        .welcome-text { margin: 8px 0; max-width: 90%; line-height: 1.5; font-size: 1rem; }
+        h1.welcome-text { font-size: 1.2rem; color: var(--neon-blue); }
+        
+        #start-button {
+            background: linear-gradient(45deg, var(--neon-blue), #00ffcc); 
+            font-family:'Noto Kufi Arabic'; color: #00021a;
+            border: none; padding: 15px 60px; border-radius: 50px; font-weight: 800; font-size: 1.2rem;
+            cursor: pointer; box-shadow: 0 0 20px var(--neon-blue); margin-top: 25px;
+            transition: transform 0.2s;
+            animation: pulseBtn 2s infinite;
+            -webkit-appearance: none;
+            touch-action: manipulation;
+            z-index: 8000; /* تأكيد ظهوره فوق كل شيء */
+        }
+        @keyframes pulseBtn { 0% { box-shadow: 0 0 15px var(--neon-blue); } 50% { box-shadow: 0 0 30px var(--neon-blue); } 100% { box-shadow: 0 0 15px var(--neon-blue); } }
+        #start-button:active { transform: scale(0.95); opacity: 0.8; }
+
+    </style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@100..900&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div id="welcome-screen">
+    <div id="astronaut-img"></div>
+    <h1 class="welcome-text">مهمة الفضاء: الحرارة 🌡️</h1>
+    <h2 class="welcome-text">رتب الكواكب حسب درجة حرارتها<br>(بارد - معتدل - حار)</h2>
+    <p class="welcome-text" style="font-size: 0.8rem; opacity: 0.8;">اضغط واسحب الكوكب للمكان الصحيح</p>
+    <button id="start-button">ابدأ اللعب ▶</button>
+</div>
+
+<div class="star-field">
+    <div class="layer"></div><div class="layer"></div><div class="layer"></div>
+    <div class="layer"></div><div class="layer"></div><div class="layer"></div>
+</div>
+
+<div class="audio-controls" onclick="toggleMute()"><span id="mute-icon">🔇</span></div>
+
+<div id="game-content">
+    <div class="stats-bar">
+        <div class="stat-item">⭐ <span id="score-text">0</span>/8</div>
+        <div class="stat-item">⏱️ <span id="timer-text">0</span> ث</div>
+    </div>
+    <div class="table-container">
+        <div class="column col-cold" data-type="cold">
+            <h3>❄️ باردة جداً</h3>
+            <div class="column-content" id="col-cold-content"></div>
+        </div>
+        <div class="column col-moderate" data-type="moderate">
+            <h3>🌍 معتدلة</h3>
+            <div class="column-content" id="col-moderate-content"></div>
+        </div>
+        <div class="column col-hot" data-type="hot">
+            <h3>🔥 حارة جداً</h3>
+            <div class="column-content" id="col-hot-content"></div>
+        </div>
+    </div>
+    <div class="pool-container" id="pool"></div>
+</div>
+
+<div class="modal-overlay" id="finish-modal">
+    <div class="modal-content">
+        <h2 style="color: var(--success)">أحسنت يا بطل! 🚀</h2>
+        <p>أنهيت المهمة في: <span id="final-time">0</span> ثانية</p>
+        <span class="rank-tag" id="final-rank"></span>
+        <button class="retry-btn" onclick="location.reload()">العب مرة أخرى ↺</button>
+    </div>
+</div>
+
+<script>
+    // --- البيانات ---
+    const planetData = [
+        { id: "1", name: "عطارد", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Mercury_in_true_color.jpg/240px-Mercury_in_true_color.jpg", type: "hot" },
+        { id: "2", name: "الزهرة", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/08/Venus_from_Mariner_10.jpg/240px-Venus_from_Mariner_10.jpg", type: "hot" },
+        { id: "3", name: "الأرض", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/The_Earth_seen_from_Apollo_17.jpg/240px-The_Earth_seen_from_Apollo_17.jpg", type: "moderate" },
+        { id: "4", name: "المريخ", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/OSIRIS_Mars_true_color.jpg/240px-OSIRIS_Mars_true_color.jpg", type: "moderate" },
+        { id: "5", name: "المشتري", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/Jupiter_and_its_shrunken_Great_Red_Spot.jpg/240px-Jupiter_and_its_shrunken_Great_Red_Spot.jpg", type: "cold" },
+        { id: "6", name: "زحل", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Saturn_during_Equinox.jpg/300px-Saturn_during_Equinox.jpg", type: "cold" },
+        { id: "7", name: "أورانوس", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/Uranus2.jpg/240px-Uranus2.jpg", type: "cold" },
+        { id: "8", name: "نبتون", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/Neptune_-_Voyager_2_%2829347980845%29_flatten_crop.jpg/240px-Neptune_-_Voyager_2_%2829347980845%29_flatten_crop.jpg", type: "cold" }
+    ];
+
+    const lang = { best:"رائد فضاء أسطوري 🏆", good : "خبير كواكب 👨‍🚀", mid:"مستكشف ناشيء 🚀", worst:"متدرب جديد 📚"};
+
+    let correctCount = 0, seconds = 0, timerActive = false, timerInterval;
+    let audioContext = null; 
+    let isMuted = true;
+    let isMusicPlaying = false;
+    let musicTimer = null;
+    let noteIndex = 0;
+
+    // تهيئة الصوت (قد تفشل في بعض المتصفحات إذا لم يكن هناك تفاعل، لذا نضعها في try)
+    function initAudio() {
+        try {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+        } catch(e) { console.log("Audio init pending interaction"); }
+    }
+
+    const melody = [
+        {f: 261.63, d: 0.2}, {f: 329.63, d: 0.2}, {f: 392.00, d: 0.2}, 
+        {f: 523.25, d: 0.4}, {f: 392.00, d: 0.2}, {f: 329.63, d: 0.4}, 
+        {f: 293.66, d: 0.2}, {f: 349.23, d: 0.2}, {f: 440.00, d: 0.2}, 
+        {f: 293.66, d: 0.4} 
+    ];
+
+    function playMusicStep() {
+        if (!isMusicPlaying || isMuted || !audioContext) return;
+        
+        try {
+            const note = melody[noteIndex % melody.length];
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            
+            osc.type = 'triangle'; 
+            osc.frequency.value = note.f;
+            
+            const t = audioContext.currentTime;
+            gain.gain.setValueAtTime(0.001, t);
+            gain.gain.linearRampToValueAtTime(0.08, t + 0.05); 
+            gain.gain.linearRampToValueAtTime(0.001, t + note.d); 
+
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            osc.start(t);
+            osc.stop(t + note.d);
+
+            noteIndex++;
+            musicTimer = setTimeout(playMusicStep, note.d * 1000 + 50);
+        } catch(e) {}
+    }
+
+    function startMusic() {
+        if (isMusicPlaying) return;
+        isMusicPlaying = true;
+        playMusicStep();
+    }
+
+    function stopMusic() {
+        isMusicPlaying = false;
+        clearTimeout(musicTimer);
+    }
+
+    function playTone(freq, type, duration) {
+        if (isMuted || !audioContext) return;
+        try {
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+            const t = audioContext.currentTime;
+            gain.gain.setValueAtTime(0.1, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            osc.start(t);
+            osc.stop(t + duration);
+        } catch(e){}
+    }
+
+    function playCorrect() { 
+        playTone(523.25, 'sine', 0.6); 
+        setTimeout(() => playTone(783.99, 'sine', 0.6), 150); 
+    }
+
+    function playWrong() { 
+        if (isMuted || !audioContext) return;
+        try {
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, audioContext.currentTime);
+            osc.frequency.linearRampToValueAtTime(50, audioContext.currentTime + 0.4);
+            const t = audioContext.currentTime;
+            gain.gain.setValueAtTime(0.1, t);
+            gain.gain.linearRampToValueAtTime(0.001, t + 0.4);
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            osc.start(t);
+            osc.stop(t + 0.4);
+        } catch(e){}
+    }
+
+    function toggleMute() {
+        initAudio();
+        isMuted = !isMuted;
+        const btn = document.getElementById('mute-icon');
+        if (isMuted) {
+            btn.textContent = "🔇";
+            stopMusic();
+        } else {
+            btn.textContent = "🔊";
+            startMusic();
+        }
+    }
+
+    // ==========================================
+    // حل مشكلة زر البدء في الايفون
+    // ==========================================
+    
+    document.getElementById('start-button').addEventListener('click', function() {
+        // 1. الانتقال المباشر للشاشة الثانية (أهم خطوة)
+        document.getElementById('welcome-screen').style.display = 'none';
+        document.getElementById('game-content').style.display = 'flex';
+
+        // 2. محاولة تشغيل الصوت في الخلفية (بدون أن تؤثر على الانتقال)
+        try {
+            initAudio();
+            isMuted = false;
+            document.getElementById('mute-icon').textContent = "🔊";
+            playTone(600, 'sine', 0.1); // صوت النقر
+            setTimeout(startMusic, 500);
+        } catch(e) {
+            console.log("Audio permission pending");
+        }
+
+        // 3. بدء اللعبة
+        initGame();
+        
+        // تعديل التخطيط لضمان عدم وجود سكرول
+        setTimeout(repositionPool, 100);
+    });
+
+
+    function initGame() {
+        const pool = document.getElementById('pool');
+        [...planetData].sort(() => Math.random() - 0.5).forEach((data) => {
+            const slot = document.createElement('div');
+            slot.className = 'planet-slot';
+            slot.id = 'slot-' + data.id;
+            pool.appendChild(slot);
+
+            const planet = document.createElement('div');
+            planet.className = 'planet';
+            planet.id = data.id;
+            planet.dataset.type = data.type; 
+            planet.innerHTML = `<div class="planet-img" style="background: url(${data.img})"></div><span>${data.name}</span>`;
+            document.body.appendChild(planet);
+            
+            makeDraggable(planet);
+        });
+    }
+
+    function launchConfetti() {
+        const canvas = document.createElement('canvas');
+        canvas.style.position = 'fixed'; canvas.style.inset = 0; canvas.style.pointerEvents = 'none'; canvas.style.zIndex = '6000';
+        document.body.appendChild(canvas);
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+        let p = Array.from({length: 100}, () => ({
+            x: Math.random() * canvas.width, y: -20, s: Math.random() * 5 + 2,
+            c: ['#ff3366','#00ffcc','#ffd700'][Math.floor(Math.random()*3)],
+            v: Math.random() * 3 + 2
+        }));
+        function anim() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            p.forEach(i => { 
+                i.y += i.v; ctx.fillStyle = i.c; ctx.beginPath(); ctx.arc(i.x, i.y, i.s, 0, 6.28); ctx.fill(); 
+            });
+            if (p[0].y < canvas.height + 50) requestAnimationFrame(anim); else canvas.remove();
+        }
+        anim();
+    }
+
+    function repositionPool() {
+        const planets = document.querySelectorAll('.planet:not(.docked)');
+        planets.forEach(planet => {
+            const slotId = 'slot-' + planet.id;
+            const slot = document.getElementById(slotId);
+            if(slot) {
+                const rect = slot.getBoundingClientRect();
+                planet.style.left = rect.left + 'px';
+                planet.style.top = rect.top + 'px';
+                planet.dataset.homeLeft = rect.left;
+                planet.dataset.homeTop = rect.top;
+            }
+        });
+    }
+
+    window.addEventListener('resize', () => { 
+        if(document.getElementById('game-content').style.display !== 'none') {
+            setTimeout(repositionPool, 200); 
+        }
+    });
+
+    function makeDraggable(el) {
+        let offsetX, offsetY;
+        
+        const start = (e) => {
+            if(el.classList.contains('docked')) return; 
+            e.preventDefault(); 
+
+            if(!timerActive) {
+                timerActive = true;
+                timerInterval = setInterval(() => { seconds++; document.getElementById('timer-text').textContent = seconds; }, 1000);
+            }
+            
+            el.classList.remove('returning');
+            el.classList.add('dragging');
+            
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            const rect = el.getBoundingClientRect();
+            offsetX = clientX - rect.left;
+            offsetY = clientY - rect.top;
+
+            if(e.touches) offsetY += 60; 
+
+            document.addEventListener('mousemove', move, { passive: false });
+            document.addEventListener('touchmove', move, { passive: false });
+            document.addEventListener('mouseup', end);
+            document.addEventListener('touchend', end);
+        };
+
+        const move = (e) => {
+            e.preventDefault(); 
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            el.style.left = (clientX - offsetX) + 'px';
+            el.style.top = (clientY - offsetY) + 'px';
+
+            const r = el.getBoundingClientRect();
+            const center = { x: r.left + r.width/2, y: r.top + r.height/2 };
+            
+            document.querySelectorAll('.column').forEach(col => {
+                const box = col.getBoundingClientRect();
+                if(center.x > box.left && center.x < box.right && center.y > box.top && center.y < box.bottom) {
+                    col.classList.add('detecting');
+                } else {
+                    col.classList.remove('detecting');
+                }
+            });
+        };
+
+        const end = (e) => {
+            document.removeEventListener('mousemove', move);
+            document.removeEventListener('touchmove', move);
+            document.removeEventListener('mouseup', end);
+            document.removeEventListener('touchend', end);
+            
+            el.classList.remove('dragging');
+            document.querySelectorAll('.column').forEach(c => c.classList.remove('detecting'));
+
+            const r = el.getBoundingClientRect();
+            const center = { x: r.left + r.width/2, y: r.top + r.height/2 };
+            let targetCol = null;
+
+            document.querySelectorAll('.column').forEach(col => {
+                const box = col.getBoundingClientRect();
+                if(center.x > box.left && center.x < box.right && center.y > box.top && center.y < box.bottom) {
+                    targetCol = col;
+                }
+            });
+
+            if (targetCol) {
+                if (el.dataset.type === targetCol.dataset.type) {
+                    playCorrect();
+                    el.classList.add('docked');
+                    el.style.position = 'relative';
+                    el.style.left = 'auto';
+                    el.style.top = 'auto';
+                    el.style.zIndex = '1';
+                    targetCol.querySelector('.column-content').appendChild(el);
+                    
+                    correctCount++;
+                    document.getElementById('score-text').textContent = correctCount;
+
+                    if (correctCount === 8) {
+                        clearInterval(timerInterval);
+                        stopMusic();
+                        setTimeout(() => {
+                            playTone(523.25, 'sine', 0.1); 
+                            setTimeout(() => playTone(659.25, 'sine', 0.1), 100);
+                            setTimeout(() => playTone(783.99, 'sine', 0.4), 200);
+                            launchConfetti();
+                        }, 500);
+
+                        document.getElementById('final-time').textContent = seconds;
+                        document.getElementById('final-rank').textContent = 
+                            seconds <= 20 ? lang.best : seconds <= 40 ? lang.good : seconds <= 60 ? lang.mid : lang.worst;
+                        setTimeout(() => document.getElementById('finish-modal').style.display = 'flex', 1000);
+                    }
+                } else {
+                    playWrong();
+                    targetCol.classList.add('error');
+                    setTimeout(() => targetCol.classList.remove('error'), 400);
+                    returnToHome();
+                }
+            } else {
+                returnToHome();
+            }
+        };
+
+        const returnToHome = () => {
+            el.classList.add('returning');
+            el.style.left = el.dataset.homeLeft + 'px';
+            el.style.top = el.dataset.homeTop + 'px';
+        };
+
+        el.addEventListener('mousedown', start);
+        el.addEventListener('touchstart', start, { passive: false });
+    }
+</script>
+</body>
+</html>

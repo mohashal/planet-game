@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>مهمة: حجم الكواكب</title>
+    <style>
+        :root {
+            --space-dark: #00021a;
+            --neon-blue: #00d4ff;
+            --neon-purple: #bc13fe;
+            --success: #00ffcc;
+            --gold: #ffd700;
+        }
+
+        * { 
+            box-sizing: border-box; 
+            -webkit-tap-highlight-color: transparent; 
+            user-select: none; -webkit-user-select: none;
+        }
+
+        body {
+            margin: 0; 
+            height: 100vh; height: 100dvh; 
+            background: var(--space-dark);
+            color: white; 
+            font-family: 'Noto Kufi Arabic', sans-serif;
+            overflow: hidden; 
+            display: flex; flex-direction: column;
+            touch-action: none;
+        }
+
+        .bg-layer {
+            position: fixed; inset: 0; z-index: -1;
+            background: radial-gradient(circle at center, #1a0b2e 0%, #00021a 100%);
+        }
+        .grid-layer {
+            position: fixed; inset: 0; z-index: -1;
+            background-image: 
+                linear-gradient(rgba(0, 212, 255, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 212, 255, 0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+            perspective: 1000px;
+            transform: scale(1.5) rotateX(20deg);
+            opacity: 0.3;
+        }
+
+        /* --- شاشة البداية --- */
+        #welcome-screen-circle {
+            position: fixed; inset: 0; z-index: 9999;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background: rgba(0, 2, 26, 1);
+            text-align: center; padding: 20px;
+        }
+        
+        #astronaut-anim {
+            width: 150px; height: 150px; margin-bottom: 20px;
+            background: url('https://cdn-icons-png.flaticon.com/512/1067/1067357.png') center/contain no-repeat;
+            animation: float 3s ease-in-out infinite;
+        }
+        @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-20px)} }
+
+        .story-box {
+            border: 2px solid var(--neon-blue);
+            background: rgba(0,0,0,0.6);
+            padding: 20px; border-radius: 15px;
+            max-width: 600px; margin-bottom: 30px;
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.2);
+        }
+        .story-text { color: var(--neon-blue); font-size: 1.1rem; line-height: 1.6; margin: 0; }
+        
+        #btn-start-game {
+            background: linear-gradient(45deg, var(--neon-blue), var(--neon-purple));
+            color: white; border: none; padding: 15px 60px; border-radius: 50px;
+            font-weight: bold; font-size: 1.3rem; cursor: pointer;
+            box-shadow: 0 0 15px rgba(188, 19, 254, 0.6);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0%{transform:scale(1)} 50%{transform:scale(1.05)} 100%{transform:scale(1)} }
+
+        /* --- منطقة اللعب --- */
+        #game-area-circle {
+            display: none; width: 100%; height: 100%;
+            position: relative; /* مهم للتموضع المطلق */
+        }
+
+        .top-bar {
+            position: absolute; top: 0; left: 0; right: 0;
+            height: 60px; display: flex; justify-content: space-between; align-items: center;
+            padding: 0 20px; z-index: 200;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+        }
+
+        /* العمود الوسطي - نجعله مطلقاً في المنتصف تماماً */
+        .center-col {
+            position: absolute;
+            left: 50%; top: 55%; /* ننزله قليلاً لأن الشريط العلوي يأخذ مساحة */
+            transform: translate(-50%, -50%);
+            width: 160px; height: 80vh;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 50;
+        }
+
+        .scale-glass {
+            position: absolute; top: 30px; bottom: 30px; width: 100%; z-index: 0;
+            background: linear-gradient(180deg, rgba(0, 212, 255, 0.1) 0%, rgba(188, 19, 254, 0.1) 100%);
+            border: 2px solid rgba(0, 212, 255, 0.3);
+            border-radius: 15px;
+            clip-path: polygon(0 0, 100% 0, 80% 100%, 20% 100%);
+        }
+
+        .lbl-up { color: var(--gold); font-weight: bold; margin-bottom: 5px; z-index: 2; font-size: 0.9rem; }
+        .lbl-down { color: var(--neon-blue); font-weight: bold; margin-top: 5px; z-index: 2; font-size: 0.9rem; }
+
+        .slots-wrapper {
+            width: 100%; height: 100%; z-index: 2;
+            display: flex; flex-direction: column; 
+            justify-content: space-evenly; align-items: center;
+            padding: 10px 0;
+        }
+
+        .drop-zone {
+            border: 1px dashed rgba(255,255,255,0.3);
+            border-radius: 50%;
+            background: rgba(0,0,0,0.2);
+            display: flex; justify-content: center; align-items: center;
+            transition: 0.3s;
+            position: relative;
+        }
+        /* تدرج الأحجام */
+        .sz-1 { width: 70px; height: 70px; }
+        .sz-2 { width: 66px; height: 66px; }
+        .sz-3 { width: 62px; height: 62px; }
+        .sz-4 { width: 58px; height: 58px; }
+        .sz-5 { width: 54px; height: 54px; }
+        .sz-6 { width: 50px; height: 50px; }
+        .sz-7 { width: 46px; height: 46px; }
+        .sz-8 { width: 42px; height: 42px; }
+
+        .drop-zone.active { border-color: var(--neon-purple); background: rgba(188, 19, 254, 0.2); transform: scale(1.1); }
+        .drop-zone.correct { border: 2px solid var(--success); background: rgba(0, 255, 204, 0.1); box-shadow: 0 0 10px var(--success); }
+
+        /* الكواكب */
+        .planet-obj {
+            position: absolute; z-index: 100;
+            width: 60px; height: 60px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            cursor: grab; touch-action: none;
+            /* سنحدد المواقع بالجافاسكريبت */
+        }
+        .p-img {
+            width: 100%; height: 100%; border-radius: 50%;
+            background-size: cover !important; pointer-events: none;
+            box-shadow: 0 0 8px rgba(0,0,0,0.8);
+        }
+        .planet-obj span {
+            position: absolute; bottom: -20px; font-size: 0.7rem;
+            background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 4px;
+            pointer-events: none; white-space: nowrap;
+        }
+        
+        .planet-obj.docked {
+            position: relative !important;
+            left: auto !important; top: auto !important;
+            transform: none !important;
+            width: 90% !important; height: 90% !important;
+            margin: 0 !important;
+            cursor: default; z-index: 50;
+        }
+        .planet-obj.docked span { display: none; } 
+
+        /* شاشة النهاية */
+        #modal-win {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 9998;
+            display: none; justify-content: center; align-items: center;
+        }
+        .win-box {
+            background: #00021a; padding: 30px; border: 2px solid var(--success);
+            border-radius: 20px; text-align: center; width: 80%;
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="bg-layer"></div>
+<div class="grid-layer"></div>
+
+<div id="welcome-screen-circle">
+    <div id="astronaut-anim"></div>
+    <div class="story-box">
+        <p class="story-text">
+            ( بعد الانفجار الشمسي العنيف، رتب الكواكب حسب حجمهم )
+        </p>
+    </div>
+    <button id="btn-start-game">ابدأ المهمة</button>
+</div>
+
+<div id="game-area-circle">
+    <div class="top-bar">
+        <div onclick="toggleSound()" style="font-size:1.5rem; cursor:pointer">🔊</div>
+        <div style="font-size:1.2rem; color:var(--gold); font-weight:bold">النتيجة: <span id="score-val">0</span>/8</div>
+    </div>
+
+    <div class="center-col">
+        <div class="lbl-up">الكوكب الأكبر ▲</div>
+        <div class="scale-glass"></div>
+        <div class="slots-wrapper" id="col-center"></div>
+        <div class="lbl-down">▼ الكوكب الأصغر</div>
+    </div>
+</div>
+
+<div id="modal-win">
+    <div class="win-box">
+        <h2 style="color:var(--success)">عمل رائع!</h2>
+        <p>تم إعادة ترتيب النظام الشمسي بنجاح.</p>
+        <button onclick="location.reload()" style="background:var(--success); border:none; padding:10px 30px; border-radius:20px; font-weight:bold; margin-top:10px">العب مرة أخرى</button>
+    </div>
+</div>
+
+<script>
+    const planetsDB = [
+        { id: "p1", name: "المشتري", rank: 1, img: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/Jupiter_and_its_shrunken_Great_Red_Spot.jpg/240px-Jupiter_and_its_shrunken_Great_Red_Spot.jpg" },
+        { id: "p2", name: "زحل", rank: 2, img: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Saturn_during_Equinox.jpg/300px-Saturn_during_Equinox.jpg" },
+        { id: "p3", name: "أورانوس", rank: 3, img: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/Uranus2.jpg/240px-Uranus2.jpg" },
+        { id: "p4", name: "نبتون", rank: 4, img: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/Neptune_-_Voyager_2_%2829347980845%29_flatten_crop.jpg/240px-Neptune_-_Voyager_2_%2829347980845%29_flatten_crop.jpg" },
+        { id: "p5", name: "الأرض", rank: 5, img: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/The_Earth_seen_from_Apollo_17.jpg/240px-The_Earth_seen_from_Apollo_17.jpg" },
+        { id: "p6", name: "الزهرة", rank: 6, img: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/08/Venus_from_Mariner_10.jpg/240px-Venus_from_Mariner_10.jpg" },
+        { id: "p7", name: "المريخ", rank: 7, img: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/OSIRIS_Mars_true_color.jpg/240px-OSIRIS_Mars_true_color.jpg" },
+        { id: "p8", name: "عطارد", rank: 8, img: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Mercury_in_true_color.jpg/240px-Mercury_in_true_color.jpg" }
+    ];
+
+    let score = 0;
+    let audioCtx = null;
+    let isMuted = false;
+
+    function initSound() {
+        try {
+            if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+        } catch(e) {}
+    }
+
+    function playEffect(type) {
+        if(isMuted || !audioCtx) return;
+        try {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            const t = audioCtx.currentTime;
+            
+            if(type === 'win') {
+                osc.frequency.setValueAtTime(500, t);
+                osc.frequency.exponentialRampToValueAtTime(1000, t+0.1);
+                gain.gain.setValueAtTime(0.2, t);
+                gain.gain.linearRampToValueAtTime(0, t+0.3);
+            } else {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, t);
+                osc.frequency.linearRampToValueAtTime(100, t+0.2);
+                gain.gain.setValueAtTime(0.2, t);
+                gain.gain.linearRampToValueAtTime(0, t+0.3);
+            }
+            osc.start(t); osc.stop(t+0.3);
+        } catch(e){}
+    }
+    
+    function toggleSound() { isMuted = !isMuted; initSound(); }
+
+    const startBtn = document.getElementById('btn-start-game');
+    startBtn.addEventListener('click', startGameLogic);
+    startBtn.addEventListener('touchstart', startGameLogic);
+
+    function startGameLogic(e) {
+        if(e) e.preventDefault();
+        document.getElementById('welcome-screen-circle').style.display = 'none';
+        document.getElementById('game-area-circle').style.display = 'block';
+        initSound();
+        setTimeout(setupBoard, 100); 
+        startBtn.removeEventListener('click', startGameLogic);
+        startBtn.removeEventListener('touchstart', startGameLogic);
+    }
+
+    function setupBoard() {
+        const centerCol = document.getElementById('col-center');
+        const gameArea = document.getElementById('game-area-circle');
+
+        // 1. إنشاء الخانات
+        centerCol.innerHTML = ''; 
+        for(let i=1; i<=8; i++) {
+            const z = document.createElement('div');
+            z.className = `drop-zone sz-${i}`;
+            z.dataset.rank = i;
+            centerCol.appendChild(z);
+        }
+
+        // 2. توزيع الكواكب بشكل دائري
+        const mixed = [...planetsDB].sort(() => Math.random() - 0.5);
+        
+        // حساب أبعاد الشاشة لتحديد نصف قطر الدائرة
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        const centerX = w / 2;
+        const centerY = h / 2 + 20; // إزاحة بسيطة للأسفل
+        
+        // نصف القطر (نستخدم الأصغر لضمان عدم الخروج من الشاشة)
+        // نقلل القيمة قليلاً (40% من العرض أو الارتفاع) لترك هوامش
+        const radiusX = Math.min(w, h) * 0.45; 
+        const radiusY = h * 0.40; 
+        
+        const totalPlanets = 8;
+        const angleStep = (2 * Math.PI) / totalPlanets;
+        // إزاحة زاوية البداية (22.5 درجة) حتى لا يغطي الكوكب العناوين في الأعلى والأسفل
+        const startAngle = angleStep / 2; 
+
+        mixed.forEach((p, idx) => {
+            const el = document.createElement('div');
+            el.className = 'planet-obj';
+            el.id = p.id;
+            el.dataset.rank = p.rank;
+            el.innerHTML = `<div class="p-img" style="background:url(${p.img})"></div><span>${p.name}</span>`;
+            
+            gameArea.appendChild(el); // إضافة لمساحة اللعب الرئيسية
+
+            // حساب الموقع الدائري
+            const angle = startAngle + (idx * angleStep);
+            const x = centerX + (radiusX * Math.cos(angle)) - 30; // -30 لنصف عرض الكوكب
+            const y = centerY + (radiusY * Math.sin(angle)) - 30;
+
+            // تعيين الموقع
+            el.style.left = x + 'px';
+            el.style.top = y + 'px';
+            
+            // حفظ الموقع الأصلي للرجوع
+            el.dataset.hx = x;
+            el.dataset.hy = y;
+
+            makeDraggable(el);
+        });
+    }
+
+    function makeDraggable(el) {
+        let sx, sy, initX, initY;
+
+        const start = (e) => {
+            if(el.classList.contains('docked')) return;
+            e.preventDefault();
+            
+            const t = e.touches ? e.touches[0] : e;
+            sx = t.clientX; sy = t.clientY;
+            initX = parseFloat(el.style.left);
+            initY = parseFloat(el.style.top);
+            
+            el.style.zIndex = 9999;
+            el.style.transform = "scale(1.3)"; 
+            el.style.transition = 'none';
+
+            document.addEventListener('mousemove', move, {passive:false});
+            document.addEventListener('touchmove', move, {passive:false});
+            document.addEventListener('mouseup', end);
+            document.addEventListener('touchend', end);
+        };
+
+        const move = (e) => {
+            e.preventDefault();
+            const t = e.touches ? e.touches[0] : e;
+            const dx = t.clientX - sx;
+            const dy = t.clientY - sy;
+            el.style.left = (initX + dx) + 'px';
+            el.style.top = (initY + dy) + 'px';
+            detectHover(el);
+        };
+
+        const end = () => {
+            document.removeEventListener('mousemove', move);
+            document.removeEventListener('touchmove', move);
+            document.removeEventListener('mouseup', end);
+            document.removeEventListener('touchend', end);
+            el.style.transform = "scale(1)";
+            processDrop(el);
+        };
+
+        el.addEventListener('mousedown', start);
+        el.addEventListener('touchstart', start, {passive:false});
+    }
+
+    function detectHover(el) {
+        const r = el.getBoundingClientRect();
+        const cx = r.left + r.width/2;
+        const cy = r.top + r.height/2;
+
+        document.querySelectorAll('.drop-zone').forEach(z => {
+            if(z.children.length > 0) return;
+            const b = z.getBoundingClientRect();
+            if(cx > b.left && cx < b.right && cy > b.top && cy < b.bottom) {
+                z.classList.add('active');
+            } else {
+                z.classList.remove('active');
+            }
+        });
+    }
+
+    function processDrop(el) {
+        document.querySelectorAll('.drop-zone').forEach(z => z.classList.remove('active'));
+        
+        const r = el.getBoundingClientRect();
+        const cx = r.left + r.width/2;
+        const cy = r.top + r.height/2;
+        let target = null;
+
+        const zones = document.querySelectorAll('.drop-zone');
+        for(let z of zones) {
+            const b = z.getBoundingClientRect();
+            if(cx > b.left && cx < b.right && cy > b.top && cy < b.bottom) {
+                target = z; break;
+            }
+        }
+
+        if(target && target.children.length === 0 && target.dataset.rank === el.dataset.rank) {
+            playEffect('win');
+            target.classList.add('correct');
+            el.classList.add('docked');
+            target.appendChild(el); 
+            score++;
+            document.getElementById('score-val').innerText = score;
+            if(score === 8) setTimeout(()=>document.getElementById('modal-win').style.display='flex', 500);
+        } else {
+            playEffect('error');
+            el.style.transition = 'all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)'; // تأثير رجوع مرن
+            el.style.left = el.dataset.hx + 'px';
+            el.style.top = el.dataset.hy + 'px';
+        }
+    }
+</script>
+</body>
+</html>

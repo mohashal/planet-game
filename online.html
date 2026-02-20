@@ -293,7 +293,7 @@ const lang={ best:"رائد فضاء أسطوري 🎖️",
         if (bgMusic.paused) { bgMusic.play(); document.getElementById('mute-icon').textContent = "🔊"; }
         else { bgMusic.pause(); document.getElementById('mute-icon').textContent = "🔇"; }
     }
-
+/*
     function launchConfetti() {
         const canvas = document.createElement('canvas');
         canvas.style.position = 'fixed'; canvas.style.inset = 0; canvas.style.pointerEvents = 'none'; canvas.style.zIndex = '6000';
@@ -311,7 +311,60 @@ const lang={ best:"رائد فضاء أسطوري 🎖️",
             if(p[0].y < canvas.height + 50) requestAnimationFrame(anim); else canvas.remove();
         }
         anim();
+    }*/
+function launchConfetti() {
+    const canvas = document.createElement('canvas');
+    // تنسيقات اللوحة لتكون خلفية شفافة فوق كل شيء
+    canvas.style.position = 'fixed'; 
+    canvas.style.inset = 0; 
+    canvas.style.pointerEvents = 'none'; 
+    canvas.style.zIndex = '6000';
+    document.body.appendChild(canvas);
+    
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth; 
+    canvas.height = window.innerHeight;
+
+    // مصفوفة ألوان "سديمية" (Nebula Colors)
+    const nebulaColors = ['#6200ea', '#311b92', '#00d4ff', '#ff00ff', '#ffd700'];
+
+    let p = Array.from({length: 150}, () => ({
+        x: Math.random() * canvas.width, 
+        y: -20, 
+        s: Math.random() * 4 + 1, // أحجام متفاوتة كالنجوم
+        c: nebulaColors[Math.floor(Math.random() * nebulaColors.length)],
+        v: Math.random() * 3 + 2, // سرعة السقوط
+        glow: Math.random() * 10 + 5 // قوة التوهج
+    }));
+
+    function anim() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        p.forEach(i => { 
+            i.y += i.v; 
+            
+            // إضافة تأثير توهج لكل نجمة ساقطة
+            ctx.shadowBlur = i.glow;
+            ctx.shadowColor = i.c;
+            ctx.fillStyle = i.c;
+            
+            ctx.beginPath(); 
+            ctx.arc(i.x, i.y, i.s, 0, 6.28); 
+            ctx.fill(); 
+            
+            // إعادة ضبط التوهج حتى لا يؤثر على العناصر الأخرى
+            ctx.shadowBlur = 0;
+        });
+
+        // التحقق مما إذا كانت أول نجمة خرجت من الشاشة للحذف
+        if (p[0].y < canvas.height + 50) {
+            requestAnimationFrame(anim); 
+        } else {
+            canvas.remove();
+        }
     }
+    anim();
+}
 
     // تُستدعى هذه الدالة لترتيب الكواكب في أماكنها الأولية أو المعاد تنظيمها
     function repositionAll() {

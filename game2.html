@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <title>TODO supply a title</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            body {
+    margin: 0;
+    background: #050510;
+    color: white;
+    font-family: 'Segoe UI', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+/* خلفية النجوم المتحركة */
+.stars-background {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    background: radial-gradient(ellipse at bottom, #1B2735 0%, #090A0F 100%);
+    background-image: url('https://www.transparenttextures.com/patterns/stardust.png');
+}
+
+.header h1 { color: #ffcc00; text-shadow: 0 0 10px rgba(255,204,0,0.5); }
+
+.stats {
+    display: flex;
+    gap: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 10px 25px;
+    border-radius: 30px;
+    margin-bottom: 20px;
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+.game-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    width: 95%;
+    max-width: 900px;
+}
+
+.column {
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px dashed #444;
+    border-radius: 15px;
+    min-height: 200px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: 0.3s;
+}
+
+.column.drag-over {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.02);
+}
+
+.planet-card {
+    width: 80px;
+    padding: 10px;
+    background: rgba(26, 26, 46, 0.8);
+    border: 1px solid #444;
+    border-radius: 12px;
+    text-align: center;
+    cursor: grab;
+    margin: 5px;
+}
+
+.planet-card img { width: 50px; height: 50px; }
+
+.planets-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 30px;
+    padding: 20px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 15px;
+    width: 90%;
+}
+
+button {
+    background: linear-gradient(45deg, #4e44ce, #2271B3);
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 25px;
+    cursor: pointer;
+    font-weight: bold;
+    margin-top: 20px;
+}
+        </style>
+    </head>
+    <body>
+<div class="stars-background"></div>
+<div class="header">
+    <h1>تحدي تصنيف كواكب المجموعة الشمسية</h1>
+    <p>رتب الكواكب في مكانها الصحيح حسب درجة حرارتها</p>
+</div>
+
+<div class="stats">
+    <div>النقاط: <span id="score">0</span></div>
+    <div>الوقت: <span id="timer">0</span> ثانية</div>
+</div>
+
+<div class="game-grid">
+    <div class="column" data-type="cold" id="cold-col">
+        <h2 style="color: #00d4ff">الكواكب الباردة</h2>
+    </div>
+    <div class="column" data-type="moderate" id="moderate-col">
+        <h2 style="color: #00ff88">كواكب معتدلة</h2>
+    </div>
+    <div class="column" data-type="hot" id="hot-col">
+        <h2 style="color: #ff4400">الكواكب الحارة</h2>
+    </div>
+</div>
+
+<div class="planets-container" id="source-container">
+    </div>
+
+<div class="controls">
+    <button onclick="resetGame()">إعادة اللعبة</button>
+</div>
+
+<audio id="success-sound" src="https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3"></audio>
+
+<script>
+    
+const planets = [
+    { id: 1, name: "عطارد", type: "hot", img: "https://cdn-icons-png.flaticon.com/128/6901/6901510.png" },
+    { id: 2, name: "الزهرة", type: "hot", img: "https://cdn-icons-png.flaticon.com/128/6901/6901538.png" },
+    { id: 3, name: "الأرض", type: "moderate", img: "https://cdn-icons-png.flaticon.com/128/2240/2240692.png" },
+    { id: 4, name: "المريخ", type: "moderate", img: "https://cdn-icons-png.flaticon.com/128/6901/6901524.png" },
+    { id: 5, name: "المشتري", type: "cold", img: "https://cdn-icons-png.flaticon.com/128/6901/6901490.png" },
+    { id: 6, name: "زحل", type: "cold", img: "https://cdn-icons-png.flaticon.com/128/6901/6901530.png" },
+    { id: 7, name: "أورانوس", type: "cold", img: "https://cdn-icons-png.flaticon.com/128/6901/6901534.png" },
+    { id: 8, name: "نبتون", type: "cold", img: "https://cdn-icons-png.flaticon.com/128/6901/6901502.png" }
+];
+
+let score = 0;
+let seconds = 0;
+let timer;
+
+function init() {
+    const container = document.getElementById('source-container');
+    const shuffled = [...planets].sort(() => Math.random() - 0.5);
+    
+    shuffled.forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'planet-card';
+        card.draggable = true;
+        card.id = `p-${p.id}`;
+        card.dataset.type = p.type;
+        card.innerHTML = `<img src="${p.img}"><br><span>${p.name}</span>`;
+        card.addEventListener('dragstart', (e) => e.dataTransfer.setData('text', e.target.id));
+        container.appendChild(card);
+    });
+
+    timer = setInterval(() => {
+        seconds++;
+        document.getElementById('timer').innerText = seconds;
+    }, 1000);
+}
+
+document.querySelectorAll('.column').forEach(col => {
+    col.addEventListener('dragover', e => e.preventDefault());
+    col.addEventListener('drop', e => {
+        const id = e.dataTransfer.getData('text');
+        const card = document.getElementById(id);
+        if (card.dataset.type === col.dataset.type) {
+            col.appendChild(card);
+            score += 10;
+            document.getElementById('success-sound').play();
+        } else {
+            score = Math.max(0, score - 5);
+            alert("هذا الكوكب لا ينتمي لهذا النطاق الحراري!");
+        }
+        document.getElementById('score').innerText = score;
+        if (document.querySelectorAll('#source-container .planet-card').length === 0) {
+            clearInterval(timer);
+            alert(`رائع! أنهيت المهمة في ${seconds} ثانية بنتيجة ${score}`);
+        }
+    });
+});
+
+function resetGame() { location.reload(); }
+init();
+    </script>
+    </body>
+</html>

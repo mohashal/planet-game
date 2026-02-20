@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>محاكي المدار: النسخة المعدلة</title>
+    <style>
+        :root {
+            --bg-deep: #0b0c15;
+            --panel-bg: #151623;
+            --neon-cyan: #00f0ff;
+            --neon-red: #ff2a6d;
+            --neon-green: #05ffa1;
+            --text-col: #d1d5db;
+        }
+
+        * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            margin: 0; height: 100vh;
+            background-color: var(--bg-deep);
+            color: var(--text-col);
+            font-family: 'Courier New', Courier, monospace;
+            overflow: hidden;
+            display: flex; flex-direction: column;
+            align-items: center;
+        }
+
+        /* الخلفية */
+        .grid-bg-orbit {
+            position: fixed; inset: 0; z-index: -1;
+            background-image: 
+                linear-gradient(rgba(0, 240, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 240, 255, 0.05) 1px, transparent 1px);
+            background-size: 40px 40px;
+            perspective: 500px;
+            animation: grid-scroll 20s linear infinite;
+        }
+        @keyframes grid-scroll { 0%{background-position: 0 0;} 100%{background-position: 0 40px;} }
+
+        /* شاشة البداية */
+        #intro-screen-orbit {
+            position: fixed; inset: 0; z-index: 9999;
+            background: var(--bg-deep);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            text-align: center;
+        }
+
+        .radar-anim {
+            width: 120px; height: 120px; border: 2px solid var(--neon-cyan); border-radius: 50%;
+            margin-bottom: 30px; position: relative;
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.2);
+        }
+        .radar-anim::after {
+            content:''; position: absolute; inset: 10px; border-radius: 50%;
+            background: var(--neon-cyan); opacity: 0.5;
+            animation: ping-pulse 1.5s infinite;
+        }
+        @keyframes ping-pulse { 0%{transform:scale(0); opacity:1} 100%{transform:scale(1); opacity:0} }
+
+        .start-btn-orbit {
+            background: transparent;
+            color: var(--neon-cyan);
+            border: 2px solid var(--neon-cyan);
+            padding: 15px 50px; font-size: 1.2rem; font-weight: bold;
+            border-radius: 5px; cursor: pointer;
+            transition: 0.2s; margin-top: 30px;
+            text-transform: uppercase; letter-spacing: 2px;
+        }
+        .start-btn-orbit:active { background: var(--neon-cyan); color: #000; transform: scale(0.95); }
+
+        /* واجهة اللعب */
+        #game-area-orbit {
+            display: none;
+            width: 100%; height: 100%;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            position: relative; z-index: 10;
+        }
+
+        /* منطقة العرض */
+        .viewport-orbit {
+            position: relative;
+            flex: 1; width: 100%;
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        .planet-orbit {
+            width: 140px; height: 140px;
+            border-radius: 50%;
+            background-size: cover;
+            box-shadow: inset -20px -20px 50px rgba(0,0,0,0.9), 0 0 40px rgba(0, 240, 255, 0.1);
+            position: relative; z-index: 10;
+        }
+        
+        #canvas-orbit {
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 5; pointer-events: none;
+        }
+
+        /* لوحة التحكم */
+        .controls-orbit {
+            width: 100%;
+            background: var(--panel-bg);
+            border-top: 2px solid var(--neon-cyan);
+            padding: 20px;
+            border-radius: 30px 30px 0 0;
+            display: flex; flex-direction: column; align-items: center;
+            box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.5);
+            z-index: 20;
+        }
+
+        .p-title {
+            font-size: 1.5rem; color: var(--neon-cyan);
+            text-transform: uppercase; letter-spacing: 2px;
+            margin-bottom: 5px; text-shadow: 0 0 10px var(--neon-cyan);
+        }
+
+        .counter-big {
+            font-size: 3.5rem; font-weight: bold;
+            color: white; margin: 5px 0;
+            font-family: sans-serif;
+        }
+
+        /* --- تحسين شريط التمرير وعرض الأرقام --- */
+        .slider-wrap { width: 95%; margin: 20px 0; position: relative; }
+        
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; margin: 0; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 35px; width: 35px;
+            border-radius: 50%;
+            background: var(--neon-cyan);
+            cursor: pointer;
+            box-shadow: 0 0 20px var(--neon-cyan);
+            margin-top: -14px;
+            border: 3px solid white;
+            position: relative; z-index: 10;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 8px;
+            cursor: pointer; background: #333; border-radius: 5px;
+        }
+
+        /* حاوية الأرقام أسفل الشريط */
+        .slider-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            width: 100%;
+            padding: 0 10px; /* لضبط المحاذاة مع الدائرة */
+        }
+        .slider-labels span {
+            color: #666; font-size: 0.8rem; font-weight: bold;
+            position: relative; cursor: pointer;
+            transition: 0.3s;
+            width: 30px; text-align: center;
+        }
+        .slider-labels span.active { color: var(--neon-cyan); transform: scale(1.2); text-shadow: 0 0 5px var(--neon-cyan); }
+
+        .action-btn {
+            background: var(--neon-cyan); color: #000;
+            border: none; padding: 15px 60px; font-size: 1.2rem; font-weight: bold;
+            border-radius: 50px; cursor: pointer;
+            box-shadow: 0 0 15px var(--neon-cyan);
+            margin-top: 15px;
+        }
+
+        /* المودال */
+        #modal-orbit {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0);
+            background: rgba(0,0,0,0.95); border: 2px solid white;
+            padding: 30px 50px; border-radius: 15px; text-align: center;
+            z-index: 9999; transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            width: 80%; max-width: 400px;
+        }
+        #modal-orbit.visible { transform: translate(-50%, -50%) scale(1); }
+
+    </style>
+</head>
+<body>
+
+<div class="grid-bg-orbit"></div>
+
+<div id="intro-screen-orbit">
+    <div class="radar-anim"></div>
+    <h1 style="color:white; margin:0; font-size:2rem;">محاكي المدار</h1>
+    <p style="color:#888; margin-top:10px;">اضبط تردد الأقمار لاستقرار الجاذبية</p>
+    <button class="start-btn-orbit" id="btn-launch">بدء المحاكاة</button>
+</div>
+
+<div id="game-area-orbit">
+    <div style="position:absolute; top:15px; left:20px; z-index:50; color:white; font-size:1.1rem;">
+        📡 الموجة: <span id="score-orbit">0</span>/8
+    </div>
+    <div onclick="toggleMuteOrb()" style="position:absolute; top:15px; right:20px; z-index:50; color:white; cursor:pointer; font-size:1.5rem">🔊</div>
+
+    <div class="viewport-orbit">
+        <canvas id="canvas-orbit"></canvas>
+        <div class="planet-orbit" id="planet-orbit-img"></div>
+    </div>
+
+    <div class="controls-orbit">
+        <div class="p-title" id="p-name-orbit">--</div>
+        <div class="counter-big" id="moon-count-display">0</div>
+        
+        <div class="slider-wrap">
+            <input type="range" id="moon-slider-orbit" min="0" max="6" step="1" value="0">
+            <div class="slider-labels" id="slider-labels-container">
+                </div>
+        </div>
+
+        <button class="action-btn" id="btn-submit-orbit" onclick="checkOrbitAnswer()">تثبيت المدار</button>
+    </div>
+</div>
+
+<div id="modal-orbit">
+    <h2 id="modal-title-orbit" style="margin:0 0 10px 0;"></h2>
+    <div id="modal-msg-orbit" style="color:#aaa;"></div>
+</div>
+
+<script>
+    // القيم الممكنة
+    const moonValues = [0, 1, 2, 16, 28, 95, 146];
+    
+    const planetsData = [
+        { name: "عطارد", target: 0, img: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Mercury_in_true_color.jpg/240px-Mercury_in_true_color.jpg" },
+        { name: "الزهرة", target: 0, img: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/08/Venus_from_Mariner_10.jpg/240px-Venus_from_Mariner_10.jpg" },
+        { name: "الأرض", target: 1, img: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/The_Earth_seen_from_Apollo_17.jpg/240px-The_Earth_seen_from_Apollo_17.jpg" },
+        { name: "المريخ", target: 2, img: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/OSIRIS_Mars_true_color.jpg/240px-OSIRIS_Mars_true_color.jpg" },
+        { name: "نبتون", target: 16, img: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/Neptune_-_Voyager_2_%2829347980845%29_flatten_crop.jpg/240px-Neptune_-_Voyager_2_%2829347980845%29_flatten_crop.jpg" },
+        { name: "أورانوس", target: 28, img: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/Uranus2.jpg/240px-Uranus2.jpg" },
+        { name: "المشتري", target: 95, img: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/Jupiter_and_its_shrunken_Great_Red_Spot.jpg/240px-Jupiter_and_its_shrunken_Great_Red_Spot.jpg" },
+        { name: "زحل", target: 146, img: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Saturn_during_Equinox.jpg/300px-Saturn_during_Equinox.jpg" }
+    ];
+
+    let gameQ = [];
+    let currIdx = 0;
+    let currMoons = 0;
+    let scoreVal = 0;
+    
+    // Canvas
+    const canvas = document.getElementById('canvas-orbit');
+    const ctx = canvas.getContext('2d');
+    let moonsArr = [];
+    
+    // Audio
+    let audCtx = null;
+    let mutedOrb = false;
+
+    // --- توليد أرقام الشريط ---
+    const labelsContainer = document.getElementById('slider-labels-container');
+    moonValues.forEach((val, idx) => {
+        const span = document.createElement('span');
+        span.innerText = val;
+        span.dataset.idx = idx;
+        // عند الضغط على الرقم يتحرك الشريط له
+        span.onclick = () => {
+            const sl = document.getElementById('moon-slider-orbit');
+            sl.value = idx;
+            // محاكاة حدث التغيير يدوياً
+            const event = new Event('input');
+            sl.dispatchEvent(event);
+        };
+        labelsContainer.appendChild(span);
+    });
+
+    function highlightLabel(index) {
+        document.querySelectorAll('.slider-labels span').forEach((sp, i) => {
+            if(i == index) sp.classList.add('active');
+            else sp.classList.remove('active');
+        });
+    }
+
+    // --- تشغيل اللعبة ---
+    const launchBtn = document.getElementById('btn-launch');
+    launchBtn.addEventListener('click', startOrbitGame);
+    launchBtn.addEventListener('touchstart', startOrbitGame);
+
+    function startOrbitGame(e) {
+        if(e) e.preventDefault();
+        document.getElementById('intro-screen-orbit').style.display = 'none';
+        document.getElementById('game-area-orbit').style.display = 'flex';
+        initAud();
+        resizeCnvs();
+        gameQ = [...planetsData].sort(() => Math.random() - 0.5);
+        currIdx = 0;
+        scoreVal = 0;
+        loadNextPlanet();
+        loopAnim();
+        launchBtn.removeEventListener('click', startOrbitGame);
+        launchBtn.removeEventListener('touchstart', startOrbitGame);
+    }
+
+    function initAud() {
+        if(!audCtx) audCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if(audCtx.state === 'suspended') audCtx.resume();
+    }
+    
+    // تعديل الصوت ليكون ألطف
+    function playSnd(type) {
+        if(mutedOrb || !audCtx) return;
+        try {
+            const o = audCtx.createOscillator();
+            const g = audCtx.createGain();
+            o.connect(g); g.connect(audCtx.destination);
+            const t = audCtx.currentTime;
+
+            if (type === 'click') {
+                // صوت تكتكة خفيفة جداً
+                o.type = 'triangle';
+                o.frequency.setValueAtTime(300, t);
+                g.gain.setValueAtTime(0.05, t);
+                g.gain.linearRampToValueAtTime(0, t + 0.05);
+                o.start(t); o.stop(t + 0.05);
+
+            } else if (type === 'win') {
+                // صوت نجاح
+                o.type = 'sine';
+                o.frequency.setValueAtTime(500, t);
+                o.frequency.exponentialRampToValueAtTime(800, t + 0.1);
+                g.gain.setValueAtTime(0.1, t);
+                g.gain.linearRampToValueAtTime(0, t + 0.3);
+                o.start(t); o.stop(t + 0.3);
+
+            } else if (type === 'error') {
+                // صوت الخطأ اللطيف (Soft Error)
+                o.type = 'sine'; // موجة ناعمة
+                o.frequency.setValueAtTime(150, t); // تردد منخفض
+                o.frequency.linearRampToValueAtTime(100, t + 0.3); // انخفاض بسيط
+                g.gain.setValueAtTime(0.1, t);
+                g.gain.linearRampToValueAtTime(0, t + 0.3); // تلاشي هادئ
+                o.start(t); o.stop(t + 0.3);
+            }
+        } catch(e){}
+    }
+
+    function toggleMuteOrb() { mutedOrb = !mutedOrb; initAud(); }
+
+    function resizeCnvs() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight * 0.6;
+    }
+    window.addEventListener('resize', resizeCnvs);
+
+    // --- منطق اللعب ---
+    function loadNextPlanet() {
+        if(currIdx >= gameQ.length) {
+            endOrbitGame();
+            return;
+        }
+        const p = gameQ[currIdx];
+        document.getElementById('p-name-orbit').innerText = p.name;
+        document.getElementById('planet-orbit-img').style.backgroundImage = `url(${p.img})`;
+        
+        const sl = document.getElementById('moon-slider-orbit');
+        sl.value = 0; 
+        updateMoonsDisplay(0, 0);
+    }
+
+    const sliderOrb = document.getElementById('moon-slider-orbit');
+    sliderOrb.addEventListener('input', (e) => {
+        const idx = parseInt(e.target.value);
+        const val = moonValues[idx];
+        updateMoonsDisplay(val, idx);
+        playSnd('click');
+    });
+
+    function updateMoonsDisplay(num, idx) {
+        currMoons = num;
+        document.getElementById('moon-count-display').innerText = num;
+        createMoons(num);
+        highlightLabel(idx);
+    }
+
+    // --- المحاكاة البصرية ---
+    function createMoons(cnt) {
+        moonsArr = [];
+        for(let i=0; i<cnt; i++) {
+            const r = 80 + Math.random() * 150; 
+            const s = (0.01 + Math.random() * 0.02) * (Math.random() < 0.5 ? 1 : -1);
+            moonsArr.push({
+                r: r,
+                ang: Math.random() * Math.PI * 2,
+                spd: s,
+                sz: 1 + Math.random() * 2,
+                col: Math.random() > 0.8 ? '#fff' : '#aaa'
+            });
+        }
+    }
+
+    function loopAnim() {
+        requestAnimationFrame(loopAnim);
+        ctx.clearRect(0, 0, canvas.width, canvas.height); 
+        const cx = canvas.width / 2;
+        const cy = canvas.height / 2;
+
+        moonsArr.forEach(m => {
+            m.ang += m.spd;
+            const x = cx + Math.cos(m.ang) * m.r;
+            const y = cy + Math.sin(m.ang) * (m.r * 0.4); 
+            ctx.beginPath();
+            ctx.arc(x, y, m.sz, 0, Math.PI * 2);
+            ctx.fillStyle = m.col;
+            ctx.fill();
+        });
+    }
+
+    // --- التحقق ---
+    function checkOrbitAnswer() {
+        const p = gameQ[currIdx];
+        const modal = document.getElementById('modal-orbit');
+        const title = document.getElementById('modal-title-orbit');
+        const msg = document.getElementById('modal-msg-orbit');
+        const btn = document.getElementById('btn-submit-orbit');
+
+        btn.disabled = true;
+
+        if(currMoons === p.target) {
+            playSnd('win');
+            title.innerText = "مدار مستقر! ✔";
+            title.style.color = "var(--neon-green)";
+            modal.style.borderColor = "var(--neon-green)";
+            msg.innerText = "تطابق مثالي للبيانات";
+            scoreVal++;
+            document.getElementById('score-orbit').innerText = scoreVal;
+        } else {
+            playSnd('error'); // الصوت اللطيف الجديد
+            title.innerText = "فشل المزامنة! ✘";
+            title.style.color = "var(--neon-red)";
+            modal.style.borderColor = "var(--neon-red)";
+            msg.innerText = `العدد الصحيح هو: ${p.target}`;
+        }
+
+        modal.classList.add('visible');
+
+        setTimeout(() => {
+            modal.classList.remove('visible');
+            currIdx++;
+            loadNextPlanet();
+            btn.disabled = false;
+        }, 2000);
+    }
+
+    function endOrbitGame() {
+        document.getElementById('game-area-orbit').innerHTML = `
+            <div style="text-align:center; margin-top:30vh; width:100%">
+                <h1 style="color:var(--neon-cyan); font-size:2.5rem; margin-bottom:10px">انتهت المحاكاة</h1>
+                <p style="font-size:1.5rem; margin-bottom:30px">النتيجة النهائية: <span style="color:var(--neon-green)">${scoreVal}</span>/8</p>
+                <button class="action-btn" onclick="location.reload()">إعادة التشغيل</button>
+            </div>
+        `;
+    }
+
+</script>
+</body>
+</html>
